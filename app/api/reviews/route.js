@@ -62,11 +62,12 @@ export async function POST(request) {
         totalReviews: outscraper.totalReviewsGoogle,   // legacy field
         totalReviewsGoogle: outscraper.totalReviewsGoogle,
         totalReviewsTripAdvisor: outscraper.totalReviewsTripAdvisor,
+        attemptedQuery: outscraper.attemptedQuery,
         reviews: [],
         scores: null,
         sources: outscraper.sources,
         sourceErrors: outscraper.errors,
-        message: 'No reviews found in the specified date range.',
+        message: 'No reviews found. Outscraper returned 0 places. Try a different query format.',
       });
     }
 

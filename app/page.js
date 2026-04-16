@@ -404,7 +404,35 @@ export default function Home() {
             {r.key_themes?.length>0&&<div style={{display:'flex',gap:4,flexWrap:'wrap',marginTop:5}}>{r.key_themes.map((t,j)=><span key={j} style={{fontSize:10,background:C.bg,padding:'2px 7px',borderRadius:10,color:C.mut}}>{t}</span>)}</div>}
           </div>))}
         </div>)}
-        {tab==='reviews'&&!hasData&&<div style={{textAlign:'center',padding:50,color:C.mut}}>⭐<div style={{fontSize:15,fontWeight:700,color:C.navy,marginTop:8}}>No reviews yet</div></div>}
+        {tab==='reviews'&&!hasData&&(
+          rd ? (
+            // Extraction attempted but returned zero reviews — show diagnostic info
+            <div style={{maxWidth:640,margin:'40px auto'}}>
+              <div style={{...card,borderLeft:`4px solid ${C.warn}`,padding:18}}>
+                <div style={{fontSize:15,fontWeight:700,color:C.navy,marginBottom:8}}>⚠️ No reviews returned</div>
+                <div style={{fontSize:13,color:C.mut,marginBottom:12}}>{rd.message || 'Outscraper returned 0 places for this query.'}</div>
+                {rd.attemptedQuery && (<div style={{fontSize:12,marginBottom:8}}>
+                  <span style={{color:C.mut}}>Query sent: </span>
+                  <span style={{fontFamily:'monospace',background:C.bg,padding:'2px 6px',borderRadius:4,wordBreak:'break-all'}}>{rd.attemptedQuery}</span>
+                </div>)}
+                {rd.sources && (<div style={{fontSize:12,color:C.mut,marginBottom:8}}>
+                  Sources: Google {rd.sources.google ?? 0} · TripAdvisor {rd.sources.tripadvisor ?? 0}
+                </div>)}
+                {rd.sourceErrors?.google && (<div style={{fontSize:11,color:C.neg,marginTop:6,fontFamily:'monospace',wordBreak:'break-all'}}>Google error: {rd.sourceErrors.google}</div>)}
+                {rd.sourceErrors?.tripadvisor && (<div style={{fontSize:11,color:C.neg,marginTop:6,fontFamily:'monospace',wordBreak:'break-all'}}>TripAdvisor error: {rd.sourceErrors.tripadvisor}</div>)}
+                <div style={{marginTop:14,padding:12,background:C.bg,borderRadius:6,fontSize:12,color:C.navy,lineHeight:1.5}}>
+                  <div style={{fontWeight:700,marginBottom:4}}>💡 Try one of these</div>
+                  <div>• Open the venue on Google Maps, click <b>Share → Copy link</b>, paste the resulting URL</div>
+                  <div>• Or type the venue name + location (e.g. <i>"Una Alkaff Mansion Singapore"</i>)</div>
+                  <div>• For ambiguous names (common words), always prefer the direct Maps URL</div>
+                </div>
+                <button onClick={()=>setTab('dashboard')} style={{...btn('gold'),marginTop:14,padding:'8px 16px',fontSize:12}}>← Back to Dashboard to retry</button>
+              </div>
+            </div>
+          ) : (
+            <div style={{textAlign:'center',padding:50,color:C.mut}}>⭐<div style={{fontSize:15,fontWeight:700,color:C.navy,marginTop:8}}>No reviews yet</div></div>
+          )
+        )}
 
         {/* ═══ TEAM ═══ */}
         {tab==='team' && (<div>{(rd?.team_mentions||[]).length>0 && <ActionBar onSave={exportTeam} saveLabel="💾 Save Team (.docx)"/>}<h2 style={{fontSize:19,fontWeight:700,color:C.navy,marginBottom:10}}>{v?.name} — Team</h2>{(rd?.team_mentions||[]).length>0?rd.team_mentions.map((m,i)=>(<div key={i} style={{...card,borderLeft:`4px solid ${m.avg_sentiment==='positive'?C.gold:C.bdr}`,display:'flex',gap:10,padding:14}}><div>✨</div><div><div style={{fontWeight:700,fontSize:14}}>{m.name}</div><div style={{fontSize:11,color:C.mut}}>{m.role} · {m.mention_count} mentions · {m.avg_sentiment}</div><div style={{fontSize:12,color:C.mut,fontStyle:'italic',marginTop:4}}>{m.sample_context}</div></div></div>)):<div style={{textAlign:'center',padding:50,color:C.mut}}>👥<div style={{fontSize:15,fontWeight:700,color:C.navy,marginTop:8}}>No team members found</div></div>}</div>)}
