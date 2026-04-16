@@ -1,35 +1,53 @@
-import { fetchGoogleReviews } from '@/lib/outscraper';
+import { fetchAllReviews } from '@/lib/outscraper';
 import { scoreReviews } from '@/lib/claude';
 
 export async function POST(request) {
   try {
     const body = await request.json();
-    const { query, competitorName, competitorType, reviewsLimit = 20 } = body;
+    const {
+      query,
+      competitorName,
+      competitorType,
+      reviewsLimit,        // legacy single-value param
+      googleLimit,         // new explicit param
+      tripAdvisorLimit,    // new explicit param
+      includeTripAdvisor = true,
+    } = body;
 
     if (!query) {
       return Response.json({ error: 'Missing query (Google Maps URL or venue name + location)' }, { status: 400 });
     }
 
-    // Step 1: Fetch reviews from Outscraper
-    const outscraper = await fetchGoogleReviews({
+    // Resolve limits — smaller defaults for competitors (faster sweep)
+    const gLimit = googleLimit ?? reviewsLimit ?? 20;
+    const taLimit = tripAdvisorLimit ?? (reviewsLimit ? Math.max(8, Math.round(reviewsLimit * 0.6)) : 15);
+
+    // Step 1: Fetch from Outscraper — Google + TripAdvisor in parallel
+    const outscraper = await fetchAllReviews({
       query,
-      reviewsLimit,
-      sort: 'newest',
+      googleLimit: gLimit,
+      tripAdvisorLimit: taLimit,
+      includeTripAdvisor,
     });
 
     const reviews = outscraper.reviews || [];
 
     if (reviews.length === 0) {
-      // Return just the Google rating if no reviews extracted
+      // Preserve legacy behaviour: HTTP 200 with nulls so the UI can still render a card
       return Response.json({
         name: competitorName || outscraper.venue,
         googleRating: outscraper.googleRating,
-        totalReviews: outscraper.totalReviews,
+        tripAdvisorRating: outscraper.tripAdvisorRating,
+        totalReviews: outscraper.totalReviewsGoogle,
+        totalReviewsGoogle: outscraper.totalReviewsGoogle,
+        totalReviewsTripAdvisor: outscraper.totalReviewsTripAdvisor,
         food_score: null,
         service_score: null,
         atmosphere_score: null,
-        overall_score: outscraper.googleRating || null,
+        overall_score: outscraper.googleRating || outscraper.tripAdvisorRating || null,
         reviewCount: 0,
+        sources: outscraper.sources,
+        sourceErrors: outscraper.errors,
         scraped: true,
       });
     }
@@ -46,13 +64,18 @@ export async function POST(request) {
     return Response.json({
       name: competitorName || outscraper.venue,
       googleRating: outscraper.googleRating,
-      totalReviews: outscraper.totalReviews,
+      tripAdvisorRating: outscraper.tripAdvisorRating,
+      totalReviews: outscraper.totalReviewsGoogle,              // legacy field
+      totalReviewsGoogle: outscraper.totalReviewsGoogle,
+      totalReviewsTripAdvisor: outscraper.totalReviewsTripAdvisor,
       address: outscraper.address,
       food_score: toNum(scored.food_score),
       service_score: toNum(scored.service_score),
       atmosphere_score: toNum(scored.atmosphere_score),
       overall_score: toNum(scored.overall_score),
       reviewCount: reviews.length,
+      sources: outscraper.sources,
+      sourceErrors: outscraper.errors,
       top_positives: scored.top_positives || [],
       top_negatives: scored.top_negatives || [],
       team_mentions: scored.team_mentions || [],
