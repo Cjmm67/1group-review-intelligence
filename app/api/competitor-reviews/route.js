@@ -1,6 +1,10 @@
 import { fetchAllReviews } from '@/lib/outscraper';
 import { scoreReviews } from '@/lib/claude';
 
+// Vercel serverless timeout ceiling (seconds). Each competitor call
+// must finish within this window or the response returns empty.
+export const maxDuration = 60;
+
 export async function POST(request) {
   try {
     const body = await request.json();
@@ -11,7 +15,10 @@ export async function POST(request) {
       reviewsLimit,        // legacy single-value param
       googleLimit,         // new explicit param
       tripAdvisorLimit,    // new explicit param
-      includeTripAdvisor = true,
+      // Default OFF for competitors — TripAdvisor async polling can push
+      // a single call past 60s, which stalls the whole 10-competitor
+      // sequential sweep. Callers can opt in per-venue when needed.
+      includeTripAdvisor = false,
     } = body;
 
     if (!query) {

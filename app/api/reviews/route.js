@@ -1,6 +1,10 @@
 import { fetchAllReviews } from '@/lib/outscraper';
 import { scoreReviews } from '@/lib/claude';
 
+// Vercel serverless timeout. TripAdvisor async polling + Claude scoring
+// can exceed the default 10s. Pro accounts can go to 300; 60s is ample.
+export const maxDuration = 60;
+
 export async function POST(request) {
   try {
     const body = await request.json();
