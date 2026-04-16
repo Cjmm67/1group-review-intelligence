@@ -6,17 +6,70 @@ const C = { navy:'#1a1a2e', gold:'#c9a84c', goldL:'#d4b86a', white:'#fff', bg:'#
 const scCol = s => s>=4.5?C.pos:s>=4?'#7cb342':s>=3.5?C.warn:s>=3?'#ff9800':s>=2?C.neg:'#b71c1c';
 const scLbl = s => s>=4.5?'Excellent':s>=4?'Very Good':s>=3.5?'Good':s>=3?'Average':'Below Avg';
 
-const VENUES = [
-  {id:'1-altitude',name:'1-Altitude',type:'Rooftop Bar & Gallery',location:'Level 63, One Raffles Place',cuisine:'Craft cocktails',price:'$$$$',occ:['sunset drinks','celebrations']},
-  {id:'1-altitude-coast',name:'1-Altitude Coast',type:'Coastal Dining',location:'One Fullerton',cuisine:'Seafood',price:'$$$',occ:['casual dining','brunch']},
-  {id:'1-arden',name:'1-Arden',type:'Modern European',location:'Level 51, CapitaSpring',cuisine:'Contemporary European',price:'$$$$',occ:['business lunch','anniversary']},
-  {id:'1-arden-bar',name:'1-Arden Bar',type:'Cocktail Bar',location:'Level 51, CapitaSpring',cuisine:'Craft cocktails',price:'$$$',occ:['after-work','date night']},
-  {id:'oumi',name:'Oumi',type:'Japanese Omakase',location:'CapitaSpring',cuisine:'Contemporary Japanese',price:'$$$$',occ:['omakase','special occasion']},
-  {id:'kaarla',name:'Kaarla',type:'Modern Australian',location:'CapitaSpring',cuisine:'Live-fire cooking',price:'$$$$',occ:['business dinner']},
-  {id:'sol-luna',name:'Sol & Luna',type:'Mediterranean',location:'CapitaSpring',cuisine:'Mediterranean sharing',price:'$$$',occ:['group dining','date night']},
-  {id:'camille',name:'Camille',type:'French Bistro',location:'Singapore',cuisine:'Modern French',price:'$$$',occ:['brunch','business lunch']},
-  {id:'1-flowerhill',name:'1-Flowerhill',type:'Multi-Concept',location:'Singapore',cuisine:'Multi-concept',price:'$$$',occ:['date night','group dining']},
+// Main venues with sub-brands (alphabetical)
+const VENUE_GROUPS = [
+  { id:'1-alfaro', name:'1-Alfaro', location:'Singapore', type:'Multi-Concept Venue',
+    subs:[
+      {id:'la-lune',name:'La Lune',type:'Restaurant',cuisine:'TBC',price:'$$$',occ:['dining','celebrations']},
+      {id:'la-torre',name:'La Torre',type:'Restaurant',cuisine:'TBC',price:'$$$',occ:['dining','celebrations']},
+    ]},
+  { id:'1-arden', name:'1-Arden', location:'Level 51, CapitaSpring', type:'Sky Dining Destination',
+    subs:[
+      {id:'1-arden-bar',name:'1-Arden Bar',type:'Cocktail Bar',cuisine:'Craft cocktails',price:'$$$',occ:['after-work','date night']},
+      {id:'kaarla',name:'Kaarla',type:'Modern Australian',cuisine:'Live-fire cooking',price:'$$$$',occ:['business dinner','celebrations']},
+      {id:'oumi',name:'Oumi',type:'Japanese Omakase',cuisine:'Contemporary Japanese',price:'$$$$',occ:['omakase','special occasion']},
+      {id:'sol-luna',name:'Sol & Luna',type:'Mediterranean',cuisine:'Mediterranean sharing',price:'$$$',occ:['group dining','date night']},
+    ]},
+  { id:'1-altitude-coast', name:'1-Altitude Coast', location:'One Fullerton', type:'Coastal Dining Destination',
+    subs:[
+      {id:'1-altitude-coast-bar',name:'1-Altitude Coast Bar',type:'Bar',cuisine:'Cocktails & beverages',price:'$$$',occ:['drinks','sunset']},
+      {id:'sol-ora',name:'Sol & Ora',type:'Restaurant',cuisine:'Coastal dining',price:'$$$',occ:['casual dining','brunch']},
+    ]},
+  { id:'1-atico', name:'1-Atico', location:'Singapore', type:'Rooftop Destination',
+    subs:[
+      {id:'1-atico-lounge',name:'1-Atico Lounge',type:'Lounge',cuisine:'Lounge & bar',price:'$$$',occ:['drinks','celebrations']},
+      {id:'fire',name:'Fire',type:'Restaurant',cuisine:'Grill & flames',price:'$$$$',occ:['dining','celebrations']},
+      {id:'flnt',name:'Flnt',type:'Restaurant',cuisine:'TBC',price:'$$$',occ:['dining']},
+    ]},
+  { id:'1-flowerhill', name:'1-Flowerhill', location:'Singapore', type:'Garden Dining Destination',
+    subs:[
+      {id:'camille',name:'Camille',type:'French Bistro',cuisine:'Modern French',price:'$$$',occ:['brunch','business lunch']},
+      {id:'wildseed-cafe-flowerhill',name:'Wildseed Cafe',type:'Cafe',cuisine:'Cafe & pastries',price:'$$',occ:['coffee','casual']},
+      {id:'wildseed-bar-grill',name:'Wildseed Bar & Grill',type:'Bar & Grill',cuisine:'Grill & drinks',price:'$$$',occ:['group dining','drinks']},
+    ]},
+  { id:'monti', name:'Monti', location:'Fullerton Pavilion', type:'Italian Restaurant',
+    subs:[
+      {id:'monti-restaurant',name:'Monti',type:'Italian Restaurant',cuisine:'Italian',price:'$$$$',occ:['business lunch','romantic dinner','celebrations']},
+    ]},
+  { id:'the-alkaff-mansion', name:'The Alkaff Mansion', location:'Telok Blangah', type:'Heritage Estate',
+    subs:[
+      {id:'1918',name:'1918',type:'Bar & Lounge',cuisine:'Cocktails',price:'$$$',occ:['drinks','events']},
+      {id:'una',name:'Una',type:'Restaurant',cuisine:'TBC',price:'$$$',occ:['dining','celebrations']},
+      {id:'wildseed-cafe-alkaff',name:'Wildseed Cafe',type:'Cafe',cuisine:'Cafe & pastries',price:'$$',occ:['coffee','casual']},
+    ]},
+  { id:'the-garage', name:'The Garage', location:'Singapore', type:'Dining Venue',
+    subs:[
+      {id:'il-giardino',name:'iL Giardino',type:'Italian Restaurant',cuisine:'Italian',price:'$$$',occ:['dining','celebrations']},
+      {id:'wildseed-cafe-garage',name:'Wildseed Cafe',type:'Cafe',cuisine:'Cafe & pastries',price:'$$',occ:['coffee','casual']},
+    ]},
+  { id:'the-river-house', name:'The River House', location:'Clarke Quay', type:'Heritage Dining Destination',
+    subs:[
+      {id:'mimi',name:'Mimi',type:'Restaurant',cuisine:'TBC',price:'$$$',occ:['dining']},
+      {id:'yin',name:'Yin',type:'Restaurant',cuisine:'TBC',price:'$$$',occ:['dining']},
+      {id:'yang',name:'Yang',type:'Restaurant',cuisine:'TBC',price:'$$$',occ:['dining']},
+      {id:'zorba',name:'Zorba',type:'Restaurant',cuisine:'Greek-Mediterranean',price:'$$$',occ:['group dining','celebrations']},
+    ]},
+  { id:'the-summer-house', name:'The Summer House', location:'Singapore Botanic Gardens', type:'Garden Dining Estate',
+    subs:[
+      {id:'botanico',name:'Botanico',type:'Restaurant',cuisine:'Mediterranean-European',price:'$$$$',occ:['romantic dinner','celebrations']},
+      {id:'wildseed-bistro',name:'Wildseed Bistro',type:'Bistro',cuisine:'Bistro fare',price:'$$$',occ:['brunch','casual dining']},
+      {id:'wildseed-cafe-summer',name:'Wildseed Cafe',type:'Cafe',cuisine:'Cafe & pastries',price:'$$',occ:['coffee','casual']},
+    ]},
 ];
+
+// Flat list of all analysable venues (sub-brands)
+const VENUES = VENUE_GROUPS.flatMap(g => g.subs.map(s => ({...s, parent:g.id, parentName:g.name, location:s.location||g.location})));
+
 
 function Gauge({ score, label, size = 80 }) {
   if (!score || score <= 0) return (<div style={{ textAlign:'center', width:size }}><svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}><circle cx={size/2} cy={size/2} r={size/2-8} fill="none" stroke={C.bdr} strokeWidth="6"/><text x={size/2} y={size/2} textAnchor="middle" dominantBaseline="central" fontSize={size*0.22} fontWeight="700" fill={C.mut}>—</text></svg>{label && <div style={{ fontSize:11, color:C.mut, marginTop:3 }}>{label}</div>}</div>);
@@ -37,6 +90,7 @@ export default function Home() {
   const [strategy, setStrategy] = useState({});
   const [addCompName, setAddCompName] = useState('');
   const [compProgress, setCompProgress] = useState(null); // { current, total, name }
+  const [expandedGroups, setExpandedGroups] = useState({}); // { venueGroupId: true/false }
 
   const v = venue ? VENUES.find(x => x.id === venue) : null;
   const rd = venue ? data[venue] : null;
@@ -360,22 +414,76 @@ export default function Home() {
         <div style={{fontSize:12,color:C.goldL,letterSpacing:1,textTransform:'uppercase'}}>Outscraper + Claude AI · Real Google Reviews</div>
       </div>
       <div style={{padding:'20px 24px',maxWidth:1200,margin:'0 auto'}}>
-        <h2 style={{fontSize:20,fontWeight:700,color:C.navy,marginBottom:6}}>Select a Venue</h2>
-        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:20}}>
-          <p style={{fontSize:13,color:C.mut,margin:0}}>Choose a venue to extract Google Reviews, score them, and benchmark against competitors.</p>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:6}}>
+          <h2 style={{fontSize:20,fontWeight:700,color:C.navy,margin:0}}>1-Group Venues</h2>
           {Object.keys(data).length > 0 && <button onClick={resetAll} style={{...btn('outline'),padding:'7px 14px',fontSize:12,color:C.neg,borderColor:C.neg}}>🔄 Reset All</button>}
         </div>
-        <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(260px,1fr))',gap:12}}>
-          {VENUES.map(v => { const d=data[v.id]; const has=d&&d.overall_score>0; return (
-            <div key={v.id} style={{...card,borderLeft:`4px solid ${has?scCol(d.overall_score):C.bdr}`,cursor:'pointer'}} onClick={()=>{setVenue(v.id);setTab('dashboard')}}>
-              <div style={{display:'flex',justifyContent:'space-between',marginBottom:4}}>
-                <div><div style={{fontSize:16,fontWeight:700,color:C.navy}}>{v.name}</div><div style={{fontSize:11,color:C.mut}}>{v.type}</div></div>
-                {has && <Gauge score={d.overall_score} size={46}/>}
+        <p style={{fontSize:13,color:C.mut,marginBottom:20}}>Select a main venue to expand its sub-brands. Click a sub-brand to analyse.</p>
+
+        <div style={{display:'flex',flexDirection:'column',gap:10}}>
+          {VENUE_GROUPS.map(g => {
+            const isOpen = expandedGroups[g.id];
+            // Count how many sub-brands have data
+            const analysedCount = g.subs.filter(s => data[s.id] && data[s.id].overall_score > 0).length;
+            // Best score among sub-brands
+            const scores = g.subs.map(s => data[s.id]?.overall_score).filter(s => s > 0);
+            const bestScore = scores.length ? Math.max(...scores) : 0;
+
+            return (
+              <div key={g.id} style={{background:C.white,borderRadius:10,border:`1px solid ${C.bdr}`,overflow:'hidden',boxShadow:'0 1px 3px rgba(0,0,0,0.04)'}}>
+                {/* Main venue header — click to expand */}
+                <div
+                  onClick={() => setExpandedGroups(prev => ({...prev, [g.id]: !prev[g.id]}))}
+                  style={{padding:'16px 20px',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'space-between',borderLeft:`4px solid ${bestScore>0?scCol(bestScore):C.gold}`,transition:'background 0.15s',background:isOpen?'#fdf8e8':'transparent'}}
+                >
+                  <div style={{display:'flex',alignItems:'center',gap:14}}>
+                    <span style={{fontSize:18,transition:'transform 0.2s',transform:isOpen?'rotate(90deg)':'rotate(0deg)',display:'inline-block'}}>▸</span>
+                    <div>
+                      <div style={{fontSize:17,fontWeight:700,color:C.navy}}>{g.name}</div>
+                      <div style={{fontSize:12,color:C.mut}}>
+                        {g.type} · 📍 {g.location} · <span style={{color:C.gold,fontWeight:600}}>{g.subs.length} sub-brand{g.subs.length!==1?'s':''}</span>
+                        {analysedCount > 0 && <span style={{marginLeft:8,color:C.pos,fontWeight:600}}>· {analysedCount} analysed</span>}
+                      </div>
+                    </div>
+                  </div>
+                  {bestScore > 0 && <Gauge score={bestScore} size={42}/>}
+                </div>
+
+                {/* Sub-brands dropdown */}
+                {isOpen && (
+                  <div style={{borderTop:`1px solid ${C.bdr}`,padding:'8px 12px 12px 48px',background:'#fafafa'}}>
+                    <div style={{fontSize:11,color:C.mut,fontWeight:600,marginBottom:8,textTransform:'uppercase',letterSpacing:0.5}}>Sub-Brands</div>
+                    <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(220px,1fr))',gap:8}}>
+                      {g.subs.map(s => {
+                        const d = data[s.id];
+                        const has = d && d.overall_score > 0;
+                        return (
+                          <div key={s.id}
+                            onClick={() => { setVenue(s.id); setTab('dashboard'); }}
+                            style={{padding:'12px 14px',borderRadius:8,border:`1px solid ${has?scCol(d.overall_score)+'40':C.bdr}`,background:C.white,cursor:'pointer',transition:'all 0.15s',borderLeft:`3px solid ${has?scCol(d.overall_score):C.bdr}`}}
+                            onMouseOver={e=>{e.currentTarget.style.boxShadow='0 2px 8px rgba(0,0,0,0.08)';e.currentTarget.style.transform='translateY(-1px)'}}
+                            onMouseOut={e=>{e.currentTarget.style.boxShadow='none';e.currentTarget.style.transform='none'}}
+                          >
+                            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                              <div>
+                                <div style={{fontSize:14,fontWeight:700,color:C.navy}}>{s.name}</div>
+                                <div style={{fontSize:11,color:C.mut}}>{s.type}{s.cuisine!=='TBC'?` · ${s.cuisine}`:''} · {s.price}</div>
+                              </div>
+                              {has && <Gauge score={d.overall_score} size={36}/>}
+                            </div>
+                            {has
+                              ? <div style={{fontSize:11,color:C.pos,fontWeight:600,marginTop:4}}>⭐ {d.reviewCount||d.reviews?.length} reviews · F:{d.food_score} S:{d.service_score} A:{d.atmosphere_score}</div>
+                              : <div style={{fontSize:11,color:C.warn,fontWeight:500,marginTop:4}}>→ Click to analyse</div>
+                            }
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
-              <div style={{fontSize:11,color:C.mut}}>📍 {v.location}</div>
-              {has ? <div style={{fontSize:11,color:C.mut,marginTop:5}}>⭐ {d.reviewCount} reviews</div> : <div style={{fontSize:11,color:C.warn,fontWeight:600,marginTop:5}}>Not yet analysed</div>}
-            </div>
-          )})}
+            );
+          })}
         </div>
       </div>
     </div>
@@ -390,7 +498,7 @@ export default function Home() {
       {/* Header */}
       <div style={{background:`linear-gradient(135deg,${C.navy},#16213e)`,color:C.white,padding:'14px 22px',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
         <div style={{cursor:'pointer'}} onClick={()=>setVenue(null)}><div style={{fontSize:19,fontWeight:700}}>1-Group Review Intelligence</div><div style={{fontSize:11,color:C.goldL,letterSpacing:1,textTransform:'uppercase'}}>Outscraper + Claude AI</div></div>
-        <span style={{fontSize:13,color:C.goldL,fontWeight:600}}>{v?.name}</span>
+        <span style={{fontSize:13,color:C.goldL,fontWeight:600}}>{v?.parentName} › {v?.name}</span>
       </div>
 
       {/* Tabs */}
@@ -408,7 +516,7 @@ export default function Home() {
           <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:16,padding:'10px 14px',background:C.white,borderRadius:8,border:`1px solid ${C.bdr}`}}>
             <button style={btn('navy')} onClick={()=>setVenue(null)}>← All Venues</button>
             <div style={{width:1,height:20,background:C.bdr}}/>
-            <div><div style={{fontSize:16,fontWeight:700,color:C.navy}}>{v?.name}</div><div style={{fontSize:11,color:C.mut}}>{v?.type} · {v?.location} · {v?.price}</div></div>
+            <div><div style={{fontSize:11,color:C.gold,fontWeight:600,marginBottom:1}}>{v?.parentName}</div><div style={{fontSize:16,fontWeight:700,color:C.navy}}>{v?.name}</div><div style={{fontSize:11,color:C.mut}}>{v?.type} · {v?.location} · {v?.price}</div></div>
           </div>
           {loading==='reviews' && <Spinner text="Extracting reviews from Google via Outscraper + scoring with AI..."/>}
           {loading!=='reviews' && (<div style={{...card,borderLeft:`4px solid ${C.gold}`}}>
