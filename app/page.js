@@ -1,6 +1,15 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, Legend, Cell } from 'recharts';
+import {
+  downloadDashboardReport,
+  downloadReviewsReport,
+  downloadTeamReport,
+  downloadCompetitorsReport,
+  downloadBenchmarksReport,
+  downloadStrategyReport,
+  downloadFullReport,
+} from '@/lib/docx-report';
 
 const C = { navy:'#1a1a2e', gold:'#c9a84c', goldL:'#d4b86a', white:'#fff', bg:'#f8f9fa', bdr:'#e9ecef', mut:'#6c757d', pos:'#28a745', warn:'#fd7e14', neg:'#dc3545', text:'#212529' };
 const scCol = s => s>=4.5?C.pos:s>=4?'#7cb342':s>=3.5?C.warn:s>=3?'#ff9800':s>=2?C.neg:'#b71c1c';
@@ -193,181 +202,16 @@ export default function Home() {
     setLoading(null);
   };
 
-  // ── Download helper ──
-  const downloadFile = (content, filename) => {
-    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a'); a.href = url; a.download = filename; a.click();
-    URL.revokeObjectURL(url);
-  };
-
-  // ── Export Reviews Report ──
-  const exportReviews = () => {
-    if (!rd || !v) return;
-    const lines = [
-      `═══════════════════════════════════════════════`,
-      `  ${v.name.toUpperCase()} — REVIEW ANALYSIS REPORT`,
-      `  Generated: ${new Date().toISOString().split('T')[0]}`,
-      `═══════════════════════════════════════════════`,
-      ``,
-      `OVERALL SCORES`,
-      `  Overall:     ${rd.overall_score}/5.0 (${scLbl(rd.overall_score)})`,
-      `  Food:        ${rd.food_score}/5.0`,
-      `  Service:     ${rd.service_score}/5.0`,
-      `  Atmosphere:  ${rd.atmosphere_score}/5.0`,
-      `  Google Rating: ${rd.googleRating || 'N/A'}`,
-      `  Reviews Analysed: ${rd.reviewCount || rd.reviews?.length || 0}`,
-      `  Period: ${rd.period}`,
-      ``,
-      `STRENGTHS`,
-      ...(rd.top_positives || []).map(p => `  ✦ ${p}`),
-      ``,
-      `WEAKNESSES`,
-      ...(rd.top_negatives || []).map(n => `  ⚠ ${n}`),
-      ``,
-      `IMPROVEMENT AREAS`,
-      ...(rd.improvement_areas || []).map(a => `  → ${a}`),
-      ``,
-      `TEAM MEMBER RECOGNITION`,
-      ...(rd.team_mentions || []).map(m => `  ${m.name} (${m.role}) — ${m.mention_count} mentions — ${m.avg_sentiment} — "${m.sample_context}"`),
-      ``,
-      `INDIVIDUAL REVIEWS`,
-      `─────────────────────────────────────────────`,
-    ];
-    (rd.reviews || []).forEach((r, i) => {
-      lines.push(`  Review #${i+1} | ${r.source} | ${r.date} | ${r.author || 'Anonymous'} | ${r.rating || '?'}★ | ${r.sentiment}`);
-      lines.push(`  Food: ${r.food_score}/5  Service: ${r.service_score}/5  Atmosphere: ${r.atmosphere_score}/5`);
-      lines.push(`  "${r.summary || r.text?.slice(0, 150)}"`);
-      if (r.key_themes?.length) lines.push(`  Themes: ${r.key_themes.join(', ')}`);
-      lines.push(`  ─────────────────────────────────────────────`);
-    });
-    downloadFile(lines.join('\n'), `${v.id}-review-report-${new Date().toISOString().split('T')[0]}.txt`);
-  };
-
-  // ── Export Competitors Report ──
-  const exportCompetitors = () => {
-    if (!v || !comps.length) return;
-    const lines = [
-      `═══════════════════════════════════════════════`,
-      `  ${v.name.toUpperCase()} — COMPETITOR ANALYSIS`,
-      `  Generated: ${new Date().toISOString().split('T')[0]}`,
-      `═══════════════════════════════════════════════`,
-      ``,
-      `SELECTED COMPETITORS: ${selectedComps.length}`,
-      ``,
-    ];
-    ['direct','indirect','custom'].forEach(type => {
-      const group = selectedComps.filter(c => c.type === type);
-      if (!group.length) return;
-      lines.push(`${type.toUpperCase()} COMPETITORS (${group.length})`);
-      lines.push(`─────────────────────────────────────────────`);
-      group.forEach(c => {
-        lines.push(`  ${c.name}`);
-        lines.push(`    Cuisine: ${c.cuisine} | Location: ${c.location} | Price: ${c.price_range || 'N/A'}`);
-        lines.push(`    Google Rating: ${c.google_rating || c.googleRating || 'N/A'}`);
-        if (c.scraped && c.food_score) lines.push(`    Food: ${c.food_score.toFixed(1)}  Service: ${c.service_score.toFixed(1)}  Atmosphere: ${c.atmosphere_score.toFixed(1)}  Overall: ${(c.overall_score||0).toFixed(1)}`);
-        lines.push(`    Why: ${c.reason}`);
-        if (c.top_positives?.length) lines.push(`    Strengths: ${c.top_positives.join(', ')}`);
-        if (c.top_negatives?.length) lines.push(`    Weaknesses: ${c.top_negatives.join(', ')}`);
-        lines.push(``);
-      });
-    });
-    downloadFile(lines.join('\n'), `${v.id}-competitor-analysis-${new Date().toISOString().split('T')[0]}.txt`);
-  };
-
-  // ── Export Benchmarks Report ──
-  const exportBenchmarks = () => {
-    if (!v || !rd || !selectedComps.length) return;
-    const scored = selectedComps.filter(c => c.scraped && (c.food_score || c.overall_score));
-    const own = { name:v.name, food:rd.food_score, service:rd.service_score, atm:rd.atmosphere_score, overall:rd.overall_score };
-    const all = [own, ...scored.map(c => ({ name:c.name, food:c.food_score||0, service:c.service_score||0, atm:c.atmosphere_score||0, overall:c.overall_score||0 }))].sort((a,b) => (b.overall||0)-(a.overall||0));
-
-    const pad = (s, n) => String(s).padEnd(n);
-    const lines = [
-      `═══════════════════════════════════════════════════════════════`,
-      `  ${v.name.toUpperCase()} — COMPETITIVE BENCHMARKING REPORT`,
-      `  Generated: ${new Date().toISOString().split('T')[0]}`,
-      `═══════════════════════════════════════════════════════════════`,
-      ``,
-      `RANKING TABLE`,
-      `${pad('#',4)} ${pad('Venue',30)} ${pad('Overall',10)} ${pad('Food',10)} ${pad('Service',10)} ${pad('Atm',10)}`,
-      `${'─'.repeat(84)}`,
-    ];
-    all.forEach((x, i) => {
-      const marker = x.name === v.name ? ' ◀ YOU' : '';
-      lines.push(`${pad(i+1,4)} ${pad(x.name,30)} ${pad((x.overall||0).toFixed(1),10)} ${pad((x.food||0).toFixed(1),10)} ${pad((x.service||0).toFixed(1),10)} ${pad((x.atm||0).toFixed(1),10)}${marker}`);
-    });
-    const ownIdx = all.findIndex(x => x.name === v.name);
-    lines.push(``);
-    lines.push(`YOUR POSITION: #${ownIdx+1} of ${all.length}`);
-    ['overall','food','service','atm'].forEach(key => {
-      const sorted = [...all].sort((a,b) => (b[key]||0)-(a[key]||0));
-      const rank = sorted.findIndex(x => x.name === v.name) + 1;
-      const leader = sorted[0];
-      const gap = rank > 1 ? (leader[key] - own[key]).toFixed(1) : '0.0';
-      const label = key === 'atm' ? 'Atmosphere' : key.charAt(0).toUpperCase() + key.slice(1);
-      lines.push(`  ${label}: Rank #${rank} ${rank>1 ? `(gap: ${gap} behind ${leader.name})` : '🏆 LEADER'}`);
-    });
-    downloadFile(lines.join('\n'), `${v.id}-benchmarks-${new Date().toISOString().split('T')[0]}.txt`);
-  };
-
-  // ── Export Strategy Report ──
-  const exportStrategy = () => {
-    if (!v || !strat) return;
-    const lines = [
-      `═══════════════════════════════════════════════`,
-      `  ${v.name.toUpperCase()} — STRATEGIC RECOMMENDATIONS`,
-      `  Generated: ${new Date().toISOString().split('T')[0]}`,
-      `═══════════════════════════════════════════════`,
-      ``,
-      `EXECUTIVE SUMMARY`,
-      `  ${strat.executive_summary}`,
-      ``,
-    ];
-    [{ t:'FOOD RECOMMENDATIONS', d:strat.food_recommendations }, { t:'SERVICE RECOMMENDATIONS', d:strat.service_recommendations }, { t:'ATMOSPHERE RECOMMENDATIONS', d:strat.atmosphere_recommendations }].forEach(sec => {
-      if (!sec.d?.length) return;
-      lines.push(sec.t);
-      sec.d.forEach(r => { lines.push(`  [${(r.priority||'').toUpperCase()}] ${r.recommendation}`); lines.push(`    Based on: ${r.based_on}`); lines.push(``); });
-    });
-    if (strat.quick_wins?.length) { lines.push(`QUICK WINS (30 DAYS)`); strat.quick_wins.forEach(q => { lines.push(`  → ${q.action}`); lines.push(`    Timeline: ${q.timeline} | Impact: ${q.expected_impact}`); lines.push(``); }); }
-    if (strat.strategic_initiatives?.length) { lines.push(`STRATEGIC INITIATIVES (3-6 MONTHS)`); strat.strategic_initiatives.forEach(s => { lines.push(`  → ${s.action}`); lines.push(`    Timeline: ${s.timeline} | Impact: ${s.expected_impact}`); lines.push(``); }); }
-    if (strat.competitive_threats?.length) { lines.push(`COMPETITIVE THREATS`); strat.competitive_threats.forEach(t => { lines.push(`  ⚠ ${t.competitor}: ${t.threat}`); lines.push(`    Response: ${t.response}`); lines.push(``); }); }
-    if (strat.team_action_items?.length) { lines.push(`TEAM ACTION ITEMS`); strat.team_action_items.forEach(t => { lines.push(`  [${(t.type||'').toUpperCase()}] ${t.detail}`); }); }
-    downloadFile(lines.join('\n'), `${v.id}-strategy-${new Date().toISOString().split('T')[0]}.txt`);
-  };
-
-  // ── Export Full Report (all sections) ──
-  const exportFullReport = () => {
-    if (!v) return;
-    const sections = [];
-    sections.push(`╔═══════════════════════════════════════════════════════════╗`);
-    sections.push(`║  1-GROUP REVIEW INTELLIGENCE — FULL REPORT              ║`);
-    sections.push(`║  ${v.name.toUpperCase().padEnd(54)}║`);
-    sections.push(`║  ${new Date().toISOString().split('T')[0].padEnd(54)}║`);
-    sections.push(`╚═══════════════════════════════════════════════════════════╝`);
-    sections.push(``);
-
-    if (rd) {
-      sections.push(`━━━ 1. REVIEW SCORES ━━━`);
-      sections.push(`Overall: ${rd.overall_score}/5  Food: ${rd.food_score}/5  Service: ${rd.service_score}/5  Atmosphere: ${rd.atmosphere_score}/5`);
-      sections.push(`Reviews: ${rd.reviewCount||rd.reviews?.length||0}  Google Rating: ${rd.googleRating||'N/A'}`);
-      sections.push(`Strengths: ${(rd.top_positives||[]).join(' | ')}`);
-      sections.push(`Weaknesses: ${(rd.top_negatives||[]).join(' | ')}`);
-      sections.push(``);
-    }
-    if (selectedComps.length) {
-      sections.push(`━━━ 2. COMPETITORS (${selectedComps.length}) ━━━`);
-      selectedComps.forEach(c => { sections.push(`  ${c.name} | ${c.type} | ${c.cuisine} | F:${c.food_score?.toFixed(1)||'?'} S:${c.service_score?.toFixed(1)||'?'} A:${c.atmosphere_score?.toFixed(1)||'?'}`); });
-      sections.push(``);
-    }
-    if (strat) {
-      sections.push(`━━━ 3. STRATEGY ━━━`);
-      sections.push(strat.executive_summary || '');
-      sections.push(``);
-      if (strat.quick_wins?.length) { sections.push(`Quick Wins:`); strat.quick_wins.forEach(q => sections.push(`  → ${q.action} (${q.timeline})`)); sections.push(``); }
-    }
-    downloadFile(sections.join('\n'), `${v.id}-full-report-${new Date().toISOString().split('T')[0]}.txt`);
-  };
+  // ── Download helpers (.docx exports) ──
+  // Each tab delegates to a dedicated Word-doc builder in lib/docx-report.js
+  // so the files are editable, properly formatted, and ready to share.
+  const exportDashboard   = () => downloadDashboardReport({ venue: v, rd });
+  const exportReviews     = () => downloadReviewsReport({ venue: v, rd });
+  const exportTeam        = () => downloadTeamReport({ venue: v, rd });
+  const exportCompetitors = () => downloadCompetitorsReport({ venue: v, selectedComps });
+  const exportBenchmarks  = () => downloadBenchmarksReport({ venue: v, rd, selectedComps });
+  const exportStrategy    = () => downloadStrategyReport({ venue: v, strat });
+  const exportFullReport  = () => downloadFullReport({ venue: v, rd, selectedComps, strat });
 
   // ── Reset current venue analysis ──
   const resetVenue = () => {
@@ -394,7 +238,7 @@ export default function Home() {
         {saveLabel}
       </button>}
       <button onClick={exportFullReport} style={{...btn('outline'), padding:'7px 14px', fontSize:12}}>
-        📋 Full Report
+        📋 Full Report (.docx)
       </button>
       {showReset && <button onClick={resetVenue} style={{...btn('red'), padding:'7px 14px', fontSize:12}}>
         🔄 Reset Venue
@@ -531,7 +375,7 @@ export default function Home() {
             <button onClick={extractReviews} disabled={loading||!googleUrl.trim()} style={{...btn('gold'),padding:'14px 32px',fontSize:15,width:'100%',justifyContent:'center',opacity:(!googleUrl.trim()||loading)?0.5:1}}>🔍 Extract & Score Reviews</button>
           </div>)}
           {hasData && loading!=='reviews' && (<div style={{marginTop:8}}>
-            <ActionBar onSave={exportReviews} saveLabel="💾 Save Scores"/>
+            <ActionBar onSave={exportDashboard} saveLabel="💾 Save Dashboard (.docx)"/>
             <div style={{display:'flex',gap:12,flexWrap:'wrap',marginBottom:14}}>
               <div style={{...card,flex:'1 1 170px',textAlign:'center'}}><Gauge score={rd.overall_score} label="Overall" size={88}/><div style={{fontSize:11,color:C.mut,marginTop:3}}>{scLbl(rd.overall_score)}</div></div>
               <div style={{...card,flex:'1 1 170px',textAlign:'center'}}><Gauge score={rd.food_score} label="Food" size={72}/></div>
@@ -547,7 +391,7 @@ export default function Home() {
 
         {/* ═══ REVIEWS ═══ */}
         {tab==='reviews' && hasData && (<div>
-          <ActionBar onSave={exportReviews} saveLabel="💾 Save Reviews"/>
+          <ActionBar onSave={exportReviews} saveLabel="💾 Save Reviews (.docx)"/>
           <h2 style={{fontSize:19,fontWeight:700,color:C.navy,marginBottom:10}}>{v?.name} — {rd.reviews?.length} Reviews</h2>
           <div style={{display:'flex',gap:12,marginBottom:14}}><Gauge score={rd.food_score} label="Food" size={64}/><Gauge score={rd.service_score} label="Service" size={64}/><Gauge score={rd.atmosphere_score} label="Atmosphere" size={64}/></div>
           {(rd.reviews||[]).map((r,i)=>(<div key={i} style={{...card,animation:`fadeIn 0.3s ease ${i*0.03}s both`}}>
@@ -563,11 +407,11 @@ export default function Home() {
         {tab==='reviews'&&!hasData&&<div style={{textAlign:'center',padding:50,color:C.mut}}>⭐<div style={{fontSize:15,fontWeight:700,color:C.navy,marginTop:8}}>No reviews yet</div></div>}
 
         {/* ═══ TEAM ═══ */}
-        {tab==='team' && (<div><h2 style={{fontSize:19,fontWeight:700,color:C.navy,marginBottom:10}}>{v?.name} — Team</h2>{(rd?.team_mentions||[]).length>0?rd.team_mentions.map((m,i)=>(<div key={i} style={{...card,borderLeft:`4px solid ${m.avg_sentiment==='positive'?C.gold:C.bdr}`,display:'flex',gap:10,padding:14}}><div>✨</div><div><div style={{fontWeight:700,fontSize:14}}>{m.name}</div><div style={{fontSize:11,color:C.mut}}>{m.role} · {m.mention_count} mentions · {m.avg_sentiment}</div><div style={{fontSize:12,color:C.mut,fontStyle:'italic',marginTop:4}}>{m.sample_context}</div></div></div>)):<div style={{textAlign:'center',padding:50,color:C.mut}}>👥<div style={{fontSize:15,fontWeight:700,color:C.navy,marginTop:8}}>No team members found</div></div>}</div>)}
+        {tab==='team' && (<div>{(rd?.team_mentions||[]).length>0 && <ActionBar onSave={exportTeam} saveLabel="💾 Save Team (.docx)"/>}<h2 style={{fontSize:19,fontWeight:700,color:C.navy,marginBottom:10}}>{v?.name} — Team</h2>{(rd?.team_mentions||[]).length>0?rd.team_mentions.map((m,i)=>(<div key={i} style={{...card,borderLeft:`4px solid ${m.avg_sentiment==='positive'?C.gold:C.bdr}`,display:'flex',gap:10,padding:14}}><div>✨</div><div><div style={{fontWeight:700,fontSize:14}}>{m.name}</div><div style={{fontSize:11,color:C.mut}}>{m.role} · {m.mention_count} mentions · {m.avg_sentiment}</div><div style={{fontSize:12,color:C.mut,fontStyle:'italic',marginTop:4}}>{m.sample_context}</div></div></div>)):<div style={{textAlign:'center',padding:50,color:C.mut}}>👥<div style={{fontSize:15,fontWeight:700,color:C.navy,marginTop:8}}>No team members found</div></div>}</div>)}
 
         {/* ═══ COMPETITORS ═══ */}
         {tab==='competitors' && (<div>
-          {comps.length>0 && <ActionBar onSave={exportCompetitors} saveLabel="💾 Save Competitors"/>}
+          {comps.length>0 && <ActionBar onSave={exportCompetitors} saveLabel="💾 Save Competitors (.docx)"/>}
           <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:14}}>
             <h2 style={{fontSize:19,fontWeight:700,color:C.navy,margin:0}}>{v?.name} — Competitors</h2>
             <div style={{display:'flex',gap:8}}>
@@ -632,7 +476,7 @@ export default function Home() {
 
         {/* ═══ BENCHMARKS ═══ */}
         {tab==='benchmarks' && (<div>
-          {hasData && selectedComps.some(c=>c.scraped) && <ActionBar onSave={exportBenchmarks} saveLabel="💾 Save Benchmarks"/>}
+          {hasData && selectedComps.some(c=>c.scraped) && <ActionBar onSave={exportBenchmarks} saveLabel="💾 Save Benchmarks (.docx)"/>}
           <h2 style={{fontSize:19,fontWeight:700,color:C.navy,marginBottom:12}}>{v?.name} — Competitive Benchmarks</h2>
           {hasData && selectedComps.some(c=>c.scraped) ? (() => {
             const scored = selectedComps.filter(c => c.scraped && (c.food_score || c.overall_score));
@@ -722,7 +566,7 @@ export default function Home() {
 
         {/* ═══ STRATEGY ═══ */}
         {tab==='strategy' && (<div>
-          {strat && <ActionBar onSave={exportStrategy} saveLabel="💾 Save Strategy"/>}
+          {strat && <ActionBar onSave={exportStrategy} saveLabel="💾 Save Strategy (.docx)"/>}
           <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
             <h2 style={{fontSize:19,fontWeight:700,color:C.navy,margin:0}}>{v?.name} — Strategy</h2>
             {hasData && <button style={btn('gold')} onClick={genStrategy} disabled={loading==='strategy'}>{loading==='strategy'?'🔄 Generating...':'⚡ Generate'}</button>}
