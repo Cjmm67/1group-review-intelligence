@@ -110,6 +110,141 @@ export default function Home() {
   const [addCompName, setAddCompName] = useState('');
   const [compProgress, setCompProgress] = useState(null); // { current, total, name }
   const [expandedGroups, setExpandedGroups] = useState({}); // { venueGroupId: true/false }
+  const [weeklyHistory, setWeeklyHistory] = useState({}); // { venueId: [snapshot, ...] }
+  const [competitorLock, setCompetitorLock] = useState({}); // { venueId: { locked, competitors } }
+
+  // ── ISO week helpers ──
+  const getISOWeek = (d = new Date()) => {
+    const date = new Date(d); date.setHours(0,0,0,0);
+    date.setDate(date.getDate()+3-(date.getDay()+6)%7);
+    const w1 = new Date(date.getFullYear(),0,4);
+    const wn = 1+Math.round(((date-w1)/86400000-3+(w1.getDay()+6)%7)/7);
+    return `${date.getFullYear()}-W${String(wn).padStart(2,'0')}`;
+  };
+  const getMonthId = (d = new Date()) => new Date(d).toISOString().slice(0,7);
+  const today = () => new Date().toISOString().split('T')[0];
+
+  // ── localStorage persistence ──
+  const LS_WEEKS = 'ri-weekly-history';
+  const LS_COMP_LOCK = 'ri-competitor-lock';
+
+  useEffect(() => {
+    try {
+      const wh = JSON.parse(localStorage.getItem(LS_WEEKS) || '{}');
+      setWeeklyHistory(wh);
+      const cl = JSON.parse(localStorage.getItem(LS_COMP_LOCK) || '{}');
+      setCompetitorLock(cl);
+    } catch {}
+  }, []);
+
+  const persistWeeks = (newHistory) => {
+    setWeeklyHistory(newHistory);
+    try { localStorage.setItem(LS_WEEKS, JSON.stringify(newHistory)); } catch {}
+  };
+  const persistCompLock = (newLock) => {
+    setCompetitorLock(newLock);
+    try { localStorage.setItem(LS_COMP_LOCK, JSON.stringify(newLock)); } catch {}
+  };
+
+  // ── Save This Week's Analysis ──
+  const saveWeeklySnapshot = () => {
+    if (!venue || !rd) return;
+    const weekId = getISOWeek();
+    const monthId = getMonthId();
+    const snapshot = {
+      weekId, monthId,
+      savedAt: today(),
+      venueId: venue,
+      scores: {
+        overall: rd.overall_score,
+        food: rd.food_score,
+        service: rd.service_score,
+        atmosphere: rd.atmosphere_score,
+        coordination: rd.coordination_score || null,
+      },
+      reviewCount: rd.reviewCount || rd.reviews?.length || 0,
+      sources: rd.sources || {},
+      topPositives: rd.top_positives || [],
+      topNegatives: rd.top_negatives || [],
+      teamMentions: (rd.team_mentions || []).map(m => ({ name:m.name, role:m.role, count:m.mention_count, sentiment:m.avg_sentiment })),
+      competitorScores: selectedComps.filter(c => c.scraped).map(c => ({
+        name: c.name, overall: c.overall_score, food: c.food_score,
+        service: c.service_score, atmosphere: c.atmosphere_score,
+      })),
+      strategySnapshot: strat ? { executive_summary: strat.executive_summary } : null,
+    };
+    const history = { ...weeklyHistory };
+    const venueWeeks = [...(history[venue] || [])];
+    // Replace if same week exists, otherwise append
+    const existIdx = venueWeeks.findIndex(w => w.weekId === weekId);
+    if (existIdx >= 0) venueWeeks[existIdx] = snapshot;
+    else venueWeeks.push(snapshot);
+    // Keep max 52 weeks (1 year)
+    while (venueWeeks.length > 52) venueWeeks.shift();
+    history[venue] = venueWeeks;
+    persistWeeks(history);
+
+    // Also lock competitors if not already locked
+    if (selectedComps.length > 0 && !competitorLock[venue]?.locked) {
+      lockCompetitors();
+    }
+  };
+
+  // ── Competitor Lock ──
+  const lockCompetitors = () => {
+    if (!venue || !selectedComps.length) return;
+    persistCompLock({ ...competitorLock, [venue]: { locked: true, lockedAt: today(), competitors: selectedComps } });
+  };
+  const unlockCompetitors = () => {
+    if (!venue) return;
+    persistCompLock({ ...competitorLock, [venue]: { ...competitorLock[venue], locked: false } });
+  };
+  const isCompLocked = venue && competitorLock[venue]?.locked;
+
+  // Load locked competitors when venue changes
+  useEffect(() => {
+    if (venue && competitorLock[venue]?.locked && competitorLock[venue]?.competitors?.length) {
+      // Only load locked competitors if we don't already have competitors for this venue
+      if (!competitors[venue]?.length) {
+        setCompetitors(prev => ({ ...prev, [venue]: competitorLock[venue].competitors }));
+      }
+    }
+  }, [venue]);
+
+  // ── Trend Calculations ──
+  const venueWeeks = venue ? (weeklyHistory[venue] || []) : [];
+  const lastWeek = venueWeeks.length > 0 ? venueWeeks[venueWeeks.length - 1] : null;
+  const prevWeek = venueWeeks.length > 1 ? venueWeeks[venueWeeks.length - 2] : null;
+
+  const getTrend = (dimension) => {
+    if (!lastWeek || !prevWeek) return null;
+    const curr = lastWeek.scores?.[dimension] || 0;
+    const prev = prevWeek.scores?.[dimension] || 0;
+    if (!curr || !prev) return null;
+    return +(curr - prev).toFixed(1);
+  };
+
+  // ── Monthly Aggregation ──
+  const getMonthlyData = () => {
+    if (!venueWeeks.length) return [];
+    const months = {};
+    venueWeeks.forEach(w => {
+      const mid = w.monthId;
+      if (!months[mid]) months[mid] = { monthId: mid, weeks: [], scores: { overall:[], food:[], service:[], atmosphere:[] } };
+      months[mid].weeks.push(w);
+      if (w.scores?.overall) months[mid].scores.overall.push(w.scores.overall);
+      if (w.scores?.food) months[mid].scores.food.push(w.scores.food);
+      if (w.scores?.service) months[mid].scores.service.push(w.scores.service);
+      if (w.scores?.atmosphere) months[mid].scores.atmosphere.push(w.scores.atmosphere);
+    });
+    const avg = arr => arr.length ? +(arr.reduce((a,b)=>a+b,0)/arr.length).toFixed(1) : 0;
+    return Object.values(months).map(m => ({
+      monthId: m.monthId,
+      weekCount: m.weeks.length,
+      totalReviews: m.weeks.reduce((s,w) => s + (w.reviewCount||0), 0),
+      scores: { overall: avg(m.scores.overall), food: avg(m.scores.food), service: avg(m.scores.service), atmosphere: avg(m.scores.atmosphere) },
+    })).sort((a,b) => a.monthId.localeCompare(b.monthId));
+  };
 
   const v = venue ? VENUES.find(x => x.id === venue) : null;
   const isWedding = v?.isWedding === true;
@@ -463,7 +598,7 @@ export default function Home() {
     </div>
   );
 
-  const tabs = [{id:'dashboard',label:'📊 Dashboard'},{id:'reviews',label:'⭐ Reviews'},{id:'team',label:'👥 Team'},{id:'competitors',label:'🎯 Competitors'},{id:'benchmarks',label:'🏆 Benchmarks'},{id:'strategy',label:'⚡ Strategy'}];
+  const tabs = [{id:'dashboard',label:'📊 Dashboard'},{id:'reviews',label:'⭐ Reviews'},{id:'team',label:'👥 Team'},{id:'competitors',label:'🎯 Competitors'},{id:'benchmarks',label:'🏆 Benchmarks'},{id:'trends',label:'📈 Trends'},{id:'strategy',label:'⚡ Strategy'}];
 
   return (
     <div style={{fontFamily:'Georgia,serif',background:C.bg,minHeight:'100vh'}}>
@@ -507,12 +642,32 @@ export default function Home() {
             </button>
           </div>)}
           {hasData && loading!=='reviews' && (<div style={{marginTop:8}}>
-            <ActionBar onSave={exportDashboard} saveLabel="💾 Save Dashboard (.docx)"/>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',flexWrap:'wrap',gap:8,marginBottom:12}}>
+              <div style={{display:'flex',gap:8}}>
+                <button onClick={saveWeeklySnapshot} style={{...btn('navy'),padding:'7px 14px',fontSize:12}}>📅 Save This Week ({getISOWeek()})</button>
+                <button onClick={exportDashboard} style={{...btn('outline'),padding:'7px 14px',fontSize:12}}>💾 Dashboard (.docx)</button>
+                <button onClick={exportFullReport} style={{...btn('outline'),padding:'7px 14px',fontSize:12}}>📋 Full Report (.docx)</button>
+              </div>
+              <button onClick={resetVenue} style={{...btn('red'),padding:'7px 14px',fontSize:12}}>🔄 Reset Venue</button>
+            </div>
+            {lastWeek && <div style={{...card,padding:10,background:'#f0fdf4',borderLeft:`4px solid ${C.pos}`,fontSize:12,display:'flex',gap:12,alignItems:'center',flexWrap:'wrap'}}>
+              <span style={{fontWeight:700,color:C.pos}}>✓ Last saved: {lastWeek.weekId}</span>
+              <span style={{color:C.mut}}>({lastWeek.savedAt})</span>
+              <span style={{color:C.mut}}>·</span>
+              <span style={{color:C.mut}}>{venueWeeks.length} week{venueWeeks.length!==1?'s':''} of history</span>
+              <button onClick={()=>setTab('trends')} style={{background:'none',border:'none',color:C.gold,fontWeight:700,cursor:'pointer',fontSize:12}}>View Trends →</button>
+            </div>}
             <div style={{display:'flex',gap:12,flexWrap:'wrap',marginBottom:14}}>
-              <div style={{...card,flex:'1 1 170px',textAlign:'center'}}><Gauge score={rd.overall_score} label="Overall" size={88}/><div style={{fontSize:11,color:C.mut,marginTop:3}}>{scLbl(rd.overall_score)}</div></div>
-              <div style={{...card,flex:'1 1 170px',textAlign:'center'}}><Gauge score={rd.food_score} label="Food" size={72}/></div>
-              <div style={{...card,flex:'1 1 170px',textAlign:'center'}}><Gauge score={rd.service_score} label="Service" size={72}/></div>
-              <div style={{...card,flex:'1 1 170px',textAlign:'center'}}><Gauge score={rd.atmosphere_score} label="Atmosphere" size={72}/></div>
+              {[{key:'overall',label:'Overall',score:rd.overall_score,sz:88},{key:'food',label:'Food',score:rd.food_score,sz:72},{key:'service',label:'Service',score:rd.service_score,sz:72},{key:'atmosphere',label:'Atmosphere',score:rd.atmosphere_score,sz:72}].map(g=>{
+                const trend = getTrend(g.key);
+                return <div key={g.key} style={{...card,flex:'1 1 170px',textAlign:'center'}}>
+                  <Gauge score={g.score} label={g.label} size={g.sz}/>
+                  {g.key==='overall' && <div style={{fontSize:11,color:C.mut,marginTop:3}}>{scLbl(g.score)}</div>}
+                  {trend !== null && <div style={{fontSize:11,fontWeight:700,marginTop:4,color:trend>0?C.pos:trend<0?C.neg:C.mut}}>
+                    {trend>0?'▲':trend<0?'▼':'─'} {trend>0?'+':''}{trend} vs prev week
+                  </div>}
+                </div>;
+              })}
               {isWedding && rd.coordination_score > 0 && <div style={{...card,flex:'1 1 170px',textAlign:'center',borderTop:`3px solid ${C.gold}`}}><Gauge score={rd.coordination_score} label="Coordination" size={72}/></div>}
             </div>
             {rd.sources && <div style={{...card,padding:12,display:'flex',gap:8,flexWrap:'wrap',alignItems:'center',fontSize:12}}>
@@ -597,10 +752,14 @@ export default function Home() {
         {/* ═══ COMPETITORS ═══ */}
         {tab==='competitors' && (<div>
           {comps.length>0 && <ActionBar onSave={exportCompetitors} saveLabel="💾 Save Competitors (.docx)"/>}
+          {isCompLocked && <div style={{...card,padding:10,background:'#eff6ff',borderLeft:`4px solid #3b82f6`,fontSize:12,marginBottom:12,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+            <span>🔒 <strong>Competitor set locked</strong> — same {(competitorLock[venue]?.competitors||[]).length} competitors used each week for consistent tracking. <button onClick={()=>setTab('trends')} style={{background:'none',border:'none',color:C.gold,fontWeight:700,cursor:'pointer',fontSize:12}}>View in Trends →</button></span>
+            <button onClick={unlockCompetitors} style={{...btn('outline'),padding:'4px 10px',fontSize:11}}>🔓 Unlock</button>
+          </div>}
           <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:14}}>
             <h2 style={{fontSize:19,fontWeight:700,color:C.navy,margin:0}}>{v?.name} — Competitors</h2>
             <div style={{display:'flex',gap:8}}>
-              {!comps.length && <button style={btn('gold')} onClick={findCompetitors} disabled={loading==='competitors'}>{loading==='competitors'?'🔄 Finding...':(isWedding?'💒 Discover Wedding Competitors':'🔍 Discover Competitors')}</button>}
+              {!comps.length && !isCompLocked && <button style={btn('gold')} onClick={findCompetitors} disabled={loading==='competitors'}>{loading==='competitors'?'🔄 Finding...':(isWedding?'💒 Discover Wedding Competitors':'🔍 Discover Competitors')}</button>}
               {selectedComps.length>0 && selectedComps.some(c=>!c.scraped) && <button style={btn('green')} onClick={extractCompetitorReviews} disabled={loading==='comp-reviews'}>📊 Extract Reviews ({selectedComps.filter(c=>!c.scraped).length})</button>}
             </div>
           </div>
@@ -748,6 +907,134 @@ export default function Home() {
               })}
             </div>);
           })() : <div style={{textAlign:'center',padding:50,color:C.mut}}>🏆<div style={{fontSize:15,fontWeight:700,color:C.navy,marginTop:8}}>{!hasData?'Extract reviews first':'Extract competitor reviews first'}</div><div style={{fontSize:13,marginTop:4}}>Go to {!hasData?'Dashboard':'Competitors'} tab → {!hasData?'extract reviews':'click Extract Reviews'}.</div></div>}
+        </div>)}
+
+        {/* ═══ TRENDS — Weekly & Monthly Analysis ═══ */}
+        {tab==='trends' && (<div>
+          <h2 style={{fontSize:19,fontWeight:700,color:C.navy,marginBottom:14}}>{v?.name} — Weekly & Monthly Trends</h2>
+
+          {/* Competitor Lock Status */}
+          <div style={{...card,padding:12,display:'flex',justifyContent:'space-between',alignItems:'center',flexWrap:'wrap',gap:8,marginBottom:14}}>
+            <div style={{display:'flex',alignItems:'center',gap:8}}>
+              <span style={{fontSize:20}}>{isCompLocked ? '🔒' : '🔓'}</span>
+              <div>
+                <div style={{fontSize:13,fontWeight:700,color:C.navy}}>Competitor Set: {isCompLocked ? 'Locked' : 'Unlocked'}</div>
+                <div style={{fontSize:11,color:C.mut}}>
+                  {isCompLocked
+                    ? `Locked on ${competitorLock[venue]?.lockedAt} · ${(competitorLock[venue]?.competitors||[]).length} competitors · Same set used for all weekly analyses`
+                    : 'Competitors will be locked after your first "Save This Week" to ensure consistent comparison'}
+                </div>
+              </div>
+            </div>
+            {isCompLocked
+              ? <button onClick={unlockCompetitors} style={{...btn('outline'),padding:'6px 12px',fontSize:11}}>🔓 Unlock to Change</button>
+              : selectedComps.length > 0 && <button onClick={lockCompetitors} style={{...btn('gold'),padding:'6px 12px',fontSize:11}}>🔒 Lock Current Set</button>
+            }
+          </div>
+
+          {/* Weekly History */}
+          <div style={{marginBottom:20}}>
+            <div style={{fontSize:15,fontWeight:700,color:C.navy,marginBottom:10}}>📅 Weekly History ({venueWeeks.length} weeks)</div>
+            {venueWeeks.length === 0 && <div style={{...card,textAlign:'center',padding:30,color:C.mut}}>
+              <div style={{fontSize:14,fontWeight:700,color:C.navy,marginBottom:6}}>No weeks saved yet</div>
+              <div style={{fontSize:12}}>Go to Dashboard → extract reviews → click "📅 Save This Week" to start tracking trends.</div>
+            </div>}
+            {venueWeeks.length > 0 && <div style={{overflowX:'auto'}}>
+              <table style={{width:'100%',borderCollapse:'collapse',fontSize:12}}>
+                <thead><tr style={{background:C.navy,color:C.white}}>
+                  <th style={{padding:'8px 12px',textAlign:'left'}}>Week</th>
+                  <th style={{padding:'8px 12px',textAlign:'left'}}>Saved</th>
+                  <th style={{padding:'8px 12px',textAlign:'center'}}>Reviews</th>
+                  <th style={{padding:'8px 12px',textAlign:'center'}}>Overall</th>
+                  <th style={{padding:'8px 12px',textAlign:'center'}}>Food</th>
+                  <th style={{padding:'8px 12px',textAlign:'center'}}>Service</th>
+                  <th style={{padding:'8px 12px',textAlign:'center'}}>Atm</th>
+                  <th style={{padding:'8px 12px',textAlign:'center'}}>Δ</th>
+                </tr></thead>
+                <tbody>{[...venueWeeks].reverse().map((w, i, arr) => {
+                  const prev = arr[i+1]; // next in reversed array = previous chronologically
+                  const delta = prev ? +(w.scores.overall - prev.scores.overall).toFixed(1) : null;
+                  return <tr key={w.weekId} style={{borderBottom:`1px solid ${C.bdr}`,background:i===0?'#fffbeb':C.white}}>
+                    <td style={{padding:'8px 12px',fontWeight:i===0?700:400}}>{w.weekId}{i===0?' (latest)':''}</td>
+                    <td style={{padding:'8px 12px',color:C.mut}}>{w.savedAt}</td>
+                    <td style={{padding:'8px 12px',textAlign:'center'}}>{w.reviewCount}</td>
+                    <td style={{padding:'8px 12px',textAlign:'center',fontWeight:700,color:scCol(w.scores.overall)}}>{w.scores.overall?.toFixed(1)}</td>
+                    <td style={{padding:'8px 12px',textAlign:'center',color:scCol(w.scores.food)}}>{w.scores.food?.toFixed(1)}</td>
+                    <td style={{padding:'8px 12px',textAlign:'center',color:scCol(w.scores.service)}}>{w.scores.service?.toFixed(1)}</td>
+                    <td style={{padding:'8px 12px',textAlign:'center',color:scCol(w.scores.atmosphere)}}>{w.scores.atmosphere?.toFixed(1)}</td>
+                    <td style={{padding:'8px 12px',textAlign:'center',fontWeight:700,color:delta>0?C.pos:delta<0?C.neg:C.mut}}>{delta!==null?(delta>0?`▲+${delta}`:delta<0?`▼${delta}`:'─ 0.0'):'—'}</td>
+                  </tr>;
+                })}</tbody>
+              </table>
+            </div>}
+          </div>
+
+          {/* Monthly Aggregation */}
+          {(() => {
+            const monthly = getMonthlyData();
+            if (!monthly.length) return null;
+            return <div style={{marginBottom:20}}>
+              <div style={{fontSize:15,fontWeight:700,color:C.navy,marginBottom:10}}>📊 Monthly Summary</div>
+              <div style={{overflowX:'auto'}}>
+                <table style={{width:'100%',borderCollapse:'collapse',fontSize:12}}>
+                  <thead><tr style={{background:C.gold,color:C.navy}}>
+                    <th style={{padding:'8px 12px',textAlign:'left'}}>Month</th>
+                    <th style={{padding:'8px 12px',textAlign:'center'}}>Weeks</th>
+                    <th style={{padding:'8px 12px',textAlign:'center'}}>Total Reviews</th>
+                    <th style={{padding:'8px 12px',textAlign:'center'}}>Avg Overall</th>
+                    <th style={{padding:'8px 12px',textAlign:'center'}}>Avg Food</th>
+                    <th style={{padding:'8px 12px',textAlign:'center'}}>Avg Service</th>
+                    <th style={{padding:'8px 12px',textAlign:'center'}}>Avg Atm</th>
+                    <th style={{padding:'8px 12px',textAlign:'center'}}>MoM Δ</th>
+                  </tr></thead>
+                  <tbody>{monthly.map((m, i) => {
+                    const prevMonth = monthly[i-1];
+                    const momDelta = prevMonth ? +(m.scores.overall - prevMonth.scores.overall).toFixed(1) : null;
+                    return <tr key={m.monthId} style={{borderBottom:`1px solid ${C.bdr}`,background:i===monthly.length-1?'#fffbeb':C.white}}>
+                      <td style={{padding:'8px 12px',fontWeight:i===monthly.length-1?700:400}}>{m.monthId}{i===monthly.length-1?' (current)':''}</td>
+                      <td style={{padding:'8px 12px',textAlign:'center'}}>{m.weekCount}</td>
+                      <td style={{padding:'8px 12px',textAlign:'center'}}>{m.totalReviews}</td>
+                      <td style={{padding:'8px 12px',textAlign:'center',fontWeight:700,color:scCol(m.scores.overall)}}>{m.scores.overall}</td>
+                      <td style={{padding:'8px 12px',textAlign:'center',color:scCol(m.scores.food)}}>{m.scores.food}</td>
+                      <td style={{padding:'8px 12px',textAlign:'center',color:scCol(m.scores.service)}}>{m.scores.service}</td>
+                      <td style={{padding:'8px 12px',textAlign:'center',color:scCol(m.scores.atmosphere)}}>{m.scores.atmosphere}</td>
+                      <td style={{padding:'8px 12px',textAlign:'center',fontWeight:700,color:momDelta>0?C.pos:momDelta<0?C.neg:C.mut}}>{momDelta!==null?(momDelta>0?`▲+${momDelta}`:momDelta<0?`▼${momDelta}`:'─ 0.0'):'—'}</td>
+                    </tr>;
+                  })}</tbody>
+                </table>
+              </div>
+            </div>;
+          })()}
+
+          {/* Competitor Trend (if multiple weeks with competitor data) */}
+          {(() => {
+            const weeksWithComps = venueWeeks.filter(w => w.competitorScores?.length > 0);
+            if (weeksWithComps.length < 2) return null;
+            const latest = weeksWithComps[weeksWithComps.length - 1];
+            const previous = weeksWithComps[weeksWithComps.length - 2];
+            return <div>
+              <div style={{fontSize:15,fontWeight:700,color:C.navy,marginBottom:10}}>🎯 Competitor Score Movement ({previous.weekId} → {latest.weekId})</div>
+              <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(250px,1fr))',gap:10}}>
+                {latest.competitorScores.map((c, i) => {
+                  const prev = previous.competitorScores.find(p => p.name === c.name);
+                  const delta = prev ? +(c.overall - prev.overall).toFixed(1) : null;
+                  return <div key={i} style={{...card,padding:12}}>
+                    <div style={{fontWeight:700,fontSize:13,marginBottom:4}}>{c.name}</div>
+                    <div style={{display:'flex',gap:12,fontSize:12}}>
+                      <span style={{color:scCol(c.overall),fontWeight:700}}>{c.overall?.toFixed(1)}</span>
+                      {delta !== null && <span style={{color:delta>0?C.pos:delta<0?C.neg:C.mut,fontWeight:600}}>
+                        {delta>0?`▲+${delta}`:delta<0?`▼${delta}`:'─ 0.0'}
+                      </span>}
+                    </div>
+                  </div>;
+                })}
+              </div>
+            </div>;
+          })()}
+
+          {venueWeeks.length > 0 && <div style={{marginTop:16,textAlign:'right'}}>
+            <button onClick={()=>{ if(window.confirm('Clear ALL weekly history for '+v?.name+'?')){ const h={...weeklyHistory}; delete h[venue]; persistWeeks(h); }}} style={{...btn('red'),padding:'6px 12px',fontSize:11}}>🗑 Clear History</button>
+          </div>}
         </div>)}
 
         {/* ═══ STRATEGY ═══ */}
