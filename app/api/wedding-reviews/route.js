@@ -58,16 +58,44 @@ export async function POST(request) {
 
     const [outscraper, weddingPlatforms] = await Promise.all([outscraperTask, weddingPlatformsTask]);
 
-    // ── Step 2: HARD FILTER Google/TA — wedding keywords required ──
-    // A review MUST contain at least one wedding-related keyword in the
-    // review text or title to pass through. General dining reviews are
-    // dropped entirely. This prevents the Monti problem where all
-    // reviews are about pasta and none about weddings.
-    const weddingKeywords = /wedding|wed\b|bride|groom|banquet|solemnisation|solemnization|ROM\b|reception|matrimon|nuptial|bridal|vow|ceremony|bouquet|corsage|march.?in|i\s?do|altar|aisle|first\s?dance|table\s?setting|floral\s?arrangement|wedding\s?planner|wedding\s?coordinator|hen\s?party|bachelor/i;
+    // ── Step 2: STRICT FILTER — wedding-only reviews ──
+    // The review text MUST contain the word "wedding" or an unmistakably
+    // bridal/matrimonial term. We deliberately EXCLUDE loose terms like:
+    //   - "banquet" (matches corporate/CNY banquets)
+    //   - "reception" (matches hotel front desk, corporate events)
+    //   - "ceremony" (matches tea ceremony, award ceremony)
+    //   - "vow" (matches "I vow to return")
+    //   - "bouquet" (matches "bouquet of flavours" in wine reviews)
+    //   - "ROM" alone (too ambiguous)
+    //   - "i do" (matches "I do recommend this place")
+    //   - "wed" alone (matches "Wednesday")
+    //   - "table setting" / "floral arrangement" (matches any event)
+    //
+    // PASS if review contains ANY of these:
+    //   • "wedding" (the gold standard — covers wedding dinner, wedding
+    //     banquet, wedding venue, wedding planner, our wedding, etc.)
+    //   • "bride" / "bridal" / "bridesmaid"
+    //   • "groom" / "groomsman" / "groomsmen"
+    //   • "solemnisation" / "solemnization"
+    //   • "nuptial" / "nuptials"
+    //   • "matrimon" (matrimony / matrimonial)
+    //   • "ROM ceremony" / "ROM solemnisation" (only ROM with context)
+    //   • "walk down the aisle"
+    //   • "first dance"
+    //   • "bridal party"
+    //   • "hen party" / "hen night"
+    //   • "bachelorette"
+    //
+    // This is intentionally strict. A review about a birthday dinner
+    // that happens to mention "this would be great for celebrations"
+    // will NOT pass. Only genuinely wedding-related reviews survive.
 
-    const outscraperReviews = (outscraper.reviews || []).filter(r =>
-      weddingKeywords.test(r.text || '') || weddingKeywords.test(r.title || '')
-    );
+    const WEDDING_STRICT = /\bwedding\b|\bbride\b|\bbridal\b|\bbridesmaid|\bgroom\b|\bgroomsmen?\b|\bsolemnisation|\bsolemnization|\bnuptial|\bmatrimon|\bROM\s+(?:ceremony|solemnisation|day|celebration)|\bwalk(?:ed|ing)?\s+down\s+the\s+aisle|\bfirst\s+dance|\bbridal\s+party|\bhen\s+(?:party|night|do)\b|\bbachelorette/i;
+
+    const outscraperReviews = (outscraper.reviews || []).filter(r => {
+      const combined = `${r.text || ''} ${r.title || ''}`;
+      return WEDDING_STRICT.test(combined);
+    });
 
     const totalGoogleTA = (outscraper.reviews || []).length;
     const filteredCount = outscraperReviews.length;
@@ -102,7 +130,7 @@ export async function POST(request) {
         },
         totalScanned: totalGoogleTA,
         weddingRelevantCount: 0,
-        message: `Scanned ${totalGoogleTA} Google/TripAdvisor reviews but none contained wedding keywords. Try a venue with more wedding activity, or check Lemon8/Bridely results.`,
+        message: `Scanned ${totalGoogleTA} Google/TripAdvisor reviews but none contained the word "wedding", "bride", "groom", or other strict bridal terms. This venue may have few public wedding reviews — check Lemon8/Bridely results or try a venue with stronger wedding presence (e.g. The Alkaff Mansion, The Summer House).`,
       });
     }
 
