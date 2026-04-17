@@ -410,7 +410,7 @@ export default function Home() {
               {rd.sources.tripadvisor > 0 && <span style={badge('#00aa6c')}>TripAdvisor {rd.sources.tripadvisor}</span>}
               {rd.sources.lemon8 > 0 && <span style={badge('#ff6b6b')}>Lemon8 {rd.sources.lemon8}</span>}
               {rd.sources.bridely > 0 && <span style={badge('#e91e9c')}>Bridely {rd.sources.bridely}</span>}
-              {isWedding && rd.weddingRelevantCount > 0 && <span style={{fontSize:11,color:C.mut,marginLeft:4}}>({rd.weddingRelevantCount} wedding-specific)</span>}
+              {isWedding && rd.totalScanned > 0 && <span style={{fontSize:11,color:C.mut,marginLeft:4}}>(filtered {rd.weddingRelevantCount || rd.reviewCount} wedding reviews from {rd.totalScanned} total scanned)</span>}
             </div>}
             <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
               <div style={card}><div style={{fontSize:13,fontWeight:700,color:C.pos,marginBottom:4}}>✦ Strengths</div>{(rd.top_positives||[]).map((p,i)=><div key={i} style={{fontSize:12,padding:'3px 0',borderBottom:`1px solid ${C.bdr}`}}>{p}</div>)}</div>

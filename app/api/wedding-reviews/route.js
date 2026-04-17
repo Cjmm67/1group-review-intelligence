@@ -33,12 +33,13 @@ export async function POST(request) {
     const cutoff = dateFrom ? String(Math.floor(new Date(dateFrom).getTime() / 1000)) : null;
 
     // ── Step 1: All 4 sources in parallel ──
-    // Google/TripAdvisor via Outscraper (the query includes "wedding" to bias results)
-    const weddingQuery = query || `${venueName} Singapore wedding`;
+    // Google/TripAdvisor via Outscraper — we pull a LARGER pool because
+    // most reviews will be general dining; we hard-filter for wedding
+    // keywords afterwards. Only wedding-relevant reviews survive.
     const outscraperTask = fetchAllReviews({
-      query: weddingQuery,
-      googleLimit,
-      tripAdvisorLimit,
+      query: query || `${venueName} Singapore`,
+      googleLimit: Math.max(googleLimit, 80),   // bigger pool — most get filtered out
+      tripAdvisorLimit: Math.max(tripAdvisorLimit, 40),
       cutoff,
       includeTripAdvisor: true,
     }).catch(e => ({
@@ -46,7 +47,7 @@ export async function POST(request) {
       errors: { google: e?.message, tripadvisor: null },
     }));
 
-    // Lemon8 + Bridely via Claude + web_search
+    // Lemon8 + Bridely via Claude + web_search (already wedding-specific)
     const weddingPlatformsTask = scrapeWeddingPlatforms({
       venueName: venueName || query,
       parentVenueName,
@@ -57,22 +58,22 @@ export async function POST(request) {
 
     const [outscraper, weddingPlatforms] = await Promise.all([outscraperTask, weddingPlatformsTask]);
 
-    // ── Step 2: Filter Google/TA reviews for wedding relevance ──
-    // Keep all reviews but tag wedding-relevant ones. The scorer
-    // will weight wedding-specific content higher.
-    const weddingKeywords = /wedding|wed|bride|groom|banquet|solemnisation|ROM|reception|matrimon|nuptial|bridal|vow|ceremony|bouquet|corsage|march.?in/i;
-    const outscraperReviews = (outscraper.reviews || []).map(r => ({
-      ...r,
-      isWeddingRelevant: weddingKeywords.test(r.text || '') || weddingKeywords.test(r.title || ''),
-    }));
+    // ── Step 2: HARD FILTER Google/TA — wedding keywords required ──
+    // A review MUST contain at least one wedding-related keyword in the
+    // review text or title to pass through. General dining reviews are
+    // dropped entirely. This prevents the Monti problem where all
+    // reviews are about pasta and none about weddings.
+    const weddingKeywords = /wedding|wed\b|bride|groom|banquet|solemnisation|solemnization|ROM\b|reception|matrimon|nuptial|bridal|vow|ceremony|bouquet|corsage|march.?in|i\s?do|altar|aisle|first\s?dance|table\s?setting|floral\s?arrangement|wedding\s?planner|wedding\s?coordinator|hen\s?party|bachelor/i;
 
-    // Prioritise wedding-relevant reviews, then pad with general reviews
-    const weddingRelevant = outscraperReviews.filter(r => r.isWeddingRelevant);
-    const generalReviews = outscraperReviews.filter(r => !r.isWeddingRelevant);
-    const sortedOutscraper = [...weddingRelevant, ...generalReviews];
+    const outscraperReviews = (outscraper.reviews || []).filter(r =>
+      weddingKeywords.test(r.text || '') || weddingKeywords.test(r.title || '')
+    );
 
-    // Merge all sources
-    const allReviews = [...sortedOutscraper, ...(weddingPlatforms.allReviews || [])];
+    const totalGoogleTA = (outscraper.reviews || []).length;
+    const filteredCount = outscraperReviews.length;
+
+    // Merge: filtered Google/TA + all Lemon8/Bridely (already wedding-specific)
+    const allReviews = [...outscraperReviews, ...(weddingPlatforms.allReviews || [])];
 
     // Filter by dateTo if specified
     let reviews = allReviews;
@@ -99,8 +100,9 @@ export async function POST(request) {
           ...outscraper.errors,
           ...weddingPlatforms.errors,
         },
+        totalScanned: totalGoogleTA,
         weddingRelevantCount: 0,
-        message: 'No wedding reviews found across any platform.',
+        message: `Scanned ${totalGoogleTA} Google/TripAdvisor reviews but none contained wedding keywords. Try a venue with more wedding activity, or check Lemon8/Bridely results.`,
       });
     }
 
@@ -136,10 +138,11 @@ export async function POST(request) {
       scrapeDate: new Date().toISOString().split('T')[0],
       period: `${dateFrom || 'all'} to ${dateTo || 'now'}`,
       reviewCount: mergedReviews.length,
-      weddingRelevantCount: weddingRelevant.length + (weddingPlatforms.allReviews || []).length,
+      totalScanned: totalGoogleTA,
+      weddingRelevantCount: filteredCount + (weddingPlatforms.allReviews || []).length,
       sources: {
-        google: (outscraper.sources?.google ?? 0),
-        tripadvisor: (outscraper.sources?.tripadvisor ?? 0),
+        google: outscraperReviews.filter(r => r.source === 'google').length,
+        tripadvisor: outscraperReviews.filter(r => r.source === 'tripadvisor').length,
         lemon8: (weddingPlatforms.sources?.lemon8 ?? 0),
         bridely: (weddingPlatforms.sources?.bridely ?? 0),
       },
