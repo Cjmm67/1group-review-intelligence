@@ -21,6 +21,7 @@ const VENUE_GROUPS = [
     subs:[
       {id:'la-lune',name:'La Lune',type:'Restaurant',cuisine:'TBC',price:'$$$',occ:['dining','celebrations']},
       {id:'la-torre',name:'La Torre',type:'Restaurant',cuisine:'TBC',price:'$$$',occ:['dining','celebrations']},
+      {id:'1-alfaro-weddings',name:'Weddings',type:'Wedding Venue',cuisine:'Wedding Events',price:'$$$$',occ:['wedding','solemnisation','banquet'],isWedding:true},
     ]},
   { id:'1-arden', name:'1-Arden', location:'Level 51, CapitaSpring', type:'Sky Dining Destination',
     subs:[
@@ -28,38 +29,45 @@ const VENUE_GROUPS = [
       {id:'kaarla',name:'Kaarla',type:'Modern Australian',cuisine:'Live-fire cooking',price:'$$$$',occ:['business dinner','celebrations']},
       {id:'oumi',name:'Oumi',type:'Japanese Omakase',cuisine:'Contemporary Japanese',price:'$$$$',occ:['omakase','special occasion']},
       {id:'sol-luna',name:'Sol & Luna',type:'Mediterranean',cuisine:'Mediterranean sharing',price:'$$$',occ:['group dining','date night']},
+      {id:'1-arden-weddings',name:'Weddings',type:'Wedding Venue',cuisine:'Wedding Events',price:'$$$$',occ:['wedding','solemnisation','banquet'],isWedding:true},
     ]},
   { id:'1-altitude-coast', name:'1-Altitude Coast', location:'One Fullerton', type:'Coastal Dining Destination',
     subs:[
       {id:'1-altitude-coast-bar',name:'1-Altitude Coast Bar',type:'Bar',cuisine:'Cocktails & beverages',price:'$$$',occ:['drinks','sunset']},
       {id:'sol-ora',name:'Sol & Ora',type:'Restaurant',cuisine:'Coastal dining',price:'$$$',occ:['casual dining','brunch']},
+      {id:'1-altitude-coast-weddings',name:'Weddings',type:'Wedding Venue',cuisine:'Wedding Events',price:'$$$$',occ:['wedding','solemnisation','banquet'],isWedding:true},
     ]},
   { id:'1-atico', name:'1-Atico', location:'Singapore', type:'Rooftop Destination',
     subs:[
       {id:'1-atico-lounge',name:'1-Atico Lounge',type:'Lounge',cuisine:'Lounge & bar',price:'$$$',occ:['drinks','celebrations']},
       {id:'fire',name:'Fire',type:'Restaurant',cuisine:'Grill & flames',price:'$$$$',occ:['dining','celebrations']},
       {id:'flnt',name:'Flnt',type:'Restaurant',cuisine:'TBC',price:'$$$',occ:['dining']},
+      {id:'1-atico-weddings',name:'Weddings',type:'Wedding Venue',cuisine:'Wedding Events',price:'$$$$',occ:['wedding','solemnisation','banquet'],isWedding:true},
     ]},
   { id:'1-flowerhill', name:'1-Flowerhill', location:'Singapore', type:'Garden Dining Destination',
     subs:[
       {id:'camille',name:'Camille',type:'French Bistro',cuisine:'Modern French',price:'$$$',occ:['brunch','business lunch']},
       {id:'wildseed-cafe-flowerhill',name:'Wildseed Cafe',type:'Cafe',cuisine:'Cafe & pastries',price:'$$',occ:['coffee','casual']},
       {id:'wildseed-bar-grill',name:'Wildseed Bar & Grill',type:'Bar & Grill',cuisine:'Grill & drinks',price:'$$$',occ:['group dining','drinks']},
+      {id:'1-flowerhill-weddings',name:'Weddings',type:'Wedding Venue',cuisine:'Wedding Events',price:'$$$$',occ:['wedding','solemnisation','banquet'],isWedding:true},
     ]},
   { id:'monti', name:'Monti', location:'Fullerton Pavilion', type:'Italian Restaurant',
     subs:[
       {id:'monti-restaurant',name:'Monti',type:'Italian Restaurant',cuisine:'Italian',price:'$$$$',occ:['business lunch','romantic dinner','celebrations']},
+      {id:'monti-weddings',name:'Weddings',type:'Wedding Venue',cuisine:'Wedding Events',price:'$$$$',occ:['wedding','solemnisation','banquet'],isWedding:true},
     ]},
   { id:'the-alkaff-mansion', name:'The Alkaff Mansion', location:'Telok Blangah', type:'Heritage Estate',
     subs:[
       {id:'1918',name:'1918',type:'Bar & Lounge',cuisine:'Cocktails',price:'$$$',occ:['drinks','events']},
       {id:'una',name:'Una',type:'Restaurant',cuisine:'TBC',price:'$$$',occ:['dining','celebrations']},
       {id:'wildseed-cafe-alkaff',name:'Wildseed Cafe',type:'Cafe',cuisine:'Cafe & pastries',price:'$$',occ:['coffee','casual']},
+      {id:'alkaff-weddings',name:'Weddings',type:'Wedding Venue',cuisine:'Wedding Events',price:'$$$$',occ:['wedding','solemnisation','banquet'],isWedding:true},
     ]},
   { id:'the-garage', name:'The Garage', location:'Singapore', type:'Dining Venue',
     subs:[
       {id:'il-giardino',name:'iL Giardino',type:'Italian Restaurant',cuisine:'Italian',price:'$$$',occ:['dining','celebrations']},
       {id:'wildseed-cafe-garage',name:'Wildseed Cafe',type:'Cafe',cuisine:'Cafe & pastries',price:'$$',occ:['coffee','casual']},
+      {id:'garage-weddings',name:'Weddings',type:'Wedding Venue',cuisine:'Wedding Events',price:'$$$$',occ:['wedding','solemnisation','banquet'],isWedding:true},
     ]},
   { id:'the-river-house', name:'The River House', location:'Clarke Quay', type:'Heritage Dining Destination',
     subs:[
@@ -67,12 +75,14 @@ const VENUE_GROUPS = [
       {id:'yin',name:'Yin',type:'Restaurant',cuisine:'TBC',price:'$$$',occ:['dining']},
       {id:'yang',name:'Yang',type:'Restaurant',cuisine:'TBC',price:'$$$',occ:['dining']},
       {id:'zorba',name:'Zorba',type:'Restaurant',cuisine:'Greek-Mediterranean',price:'$$$',occ:['group dining','celebrations']},
+      {id:'river-house-weddings',name:'Weddings',type:'Wedding Venue',cuisine:'Wedding Events',price:'$$$$',occ:['wedding','solemnisation','banquet'],isWedding:true},
     ]},
   { id:'the-summer-house', name:'The Summer House', location:'Singapore Botanic Gardens', type:'Garden Dining Estate',
     subs:[
       {id:'botanico',name:'Botanico',type:'Restaurant',cuisine:'Mediterranean-European',price:'$$$$',occ:['romantic dinner','celebrations']},
       {id:'wildseed-bistro',name:'Wildseed Bistro',type:'Bistro',cuisine:'Bistro fare',price:'$$$',occ:['brunch','casual dining']},
       {id:'wildseed-cafe-summer',name:'Wildseed Cafe',type:'Cafe',cuisine:'Cafe & pastries',price:'$$',occ:['coffee','casual']},
+      {id:'summer-house-weddings',name:'Weddings',type:'Wedding Venue',cuisine:'Wedding Events',price:'$$$$',occ:['wedding','solemnisation','banquet'],isWedding:true},
     ]},
 ];
 
@@ -102,6 +112,7 @@ export default function Home() {
   const [expandedGroups, setExpandedGroups] = useState({}); // { venueGroupId: true/false }
 
   const v = venue ? VENUES.find(x => x.id === venue) : null;
+  const isWedding = v?.isWedding === true;
   const rd = venue ? data[venue] : null;
   const comps = venue ? (competitors[venue] || []) : [];
   const selectedComps = comps.filter(c => c.selected !== false);
@@ -118,7 +129,11 @@ export default function Home() {
     if (!googleUrl.trim() || !v) { setError('Paste a Google Maps URL first.'); return; }
     setLoading('reviews'); setError(null);
     try {
-      const res = await fetch('/api/reviews', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({query:googleUrl,venueName:v.name,venueType:v.type,reviewsLimit:30,dateFrom,dateTo}) });
+      const endpoint = isWedding ? '/api/wedding-reviews' : '/api/reviews';
+      const payload = isWedding
+        ? { query: googleUrl, venueName: v.parentName, parentVenueName: v.parentName, venueType: v.type, googleLimit: 40, tripAdvisorLimit: 20, dateFrom, dateTo }
+        : { query: googleUrl, venueName: v.name, venueType: v.type, reviewsLimit: 30, dateFrom, dateTo };
+      const res = await fetch(endpoint, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload) });
       const result = await res.json();
       if (result.error) { setError(result.error); setLoading(null); return; }
       setData(prev => ({...prev,[venue]:result}));
@@ -132,7 +147,11 @@ export default function Home() {
     if (!v) return;
     setLoading('competitors'); setError(null);
     try {
-      const res = await fetch('/api/competitors', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({venueName:v.name,venueType:v.type,cuisine:v.cuisine,location:v.location,priceTier:v.price,occasions:v.occ}) });
+      const endpoint = isWedding ? '/api/wedding-competitors' : '/api/competitors';
+      const payload = isWedding
+        ? { venueName: v.parentName || v.name, venueType: v.type, location: v.location, priceTier: v.price }
+        : { venueName: v.name, venueType: v.type, cuisine: v.cuisine, location: v.location, priceTier: v.price, occasions: v.occ };
+      const res = await fetch(endpoint, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload) });
       const result = await res.json();
       if (result.error) { setError(result.error); setLoading(null); return; }
       const withSelection = (result.competitors||[]).map(c => ({...c, selected:true, scraped:false, food_score:null, service_score:null, atmosphere_score:null, overall_score:c.google_rating||null}));
@@ -372,7 +391,9 @@ export default function Home() {
               <div style={{paddingTop:22,color:C.mut}}>→</div>
               <div><label style={{fontSize:11,color:C.mut,fontWeight:600,display:'block',marginBottom:4}}>To</label><input type="date" value={dateTo} onChange={e=>setDateTo(e.target.value)} style={{...inp,width:155}}/></div>
             </div>
-            <button onClick={extractReviews} disabled={loading||!googleUrl.trim()} style={{...btn('gold'),padding:'14px 32px',fontSize:15,width:'100%',justifyContent:'center',opacity:(!googleUrl.trim()||loading)?0.5:1}}>🔍 Extract & Score Reviews</button>
+            <button onClick={extractReviews} disabled={loading||!googleUrl.trim()} style={{...btn('gold'),padding:'14px 32px',fontSize:15,width:'100%',justifyContent:'center',opacity:(!googleUrl.trim()||loading)?0.5:1}}>
+              {isWedding ? '💒 Extract Wedding Reviews (Google + TripAdvisor + Lemon8 + Bridely)' : '🔍 Extract & Score Reviews'}
+            </button>
           </div>)}
           {hasData && loading!=='reviews' && (<div style={{marginTop:8}}>
             <ActionBar onSave={exportDashboard} saveLabel="💾 Save Dashboard (.docx)"/>
@@ -381,7 +402,16 @@ export default function Home() {
               <div style={{...card,flex:'1 1 170px',textAlign:'center'}}><Gauge score={rd.food_score} label="Food" size={72}/></div>
               <div style={{...card,flex:'1 1 170px',textAlign:'center'}}><Gauge score={rd.service_score} label="Service" size={72}/></div>
               <div style={{...card,flex:'1 1 170px',textAlign:'center'}}><Gauge score={rd.atmosphere_score} label="Atmosphere" size={72}/></div>
+              {isWedding && rd.coordination_score > 0 && <div style={{...card,flex:'1 1 170px',textAlign:'center',borderTop:`3px solid ${C.gold}`}}><Gauge score={rd.coordination_score} label="Coordination" size={72}/></div>}
             </div>
+            {rd.sources && <div style={{...card,padding:12,display:'flex',gap:8,flexWrap:'wrap',alignItems:'center',fontSize:12}}>
+              <span style={{fontWeight:700,color:C.navy}}>Sources:</span>
+              {rd.sources.google > 0 && <span style={badge(C.gold)}>Google {rd.sources.google}</span>}
+              {rd.sources.tripadvisor > 0 && <span style={badge('#00aa6c')}>TripAdvisor {rd.sources.tripadvisor}</span>}
+              {rd.sources.lemon8 > 0 && <span style={badge('#ff6b6b')}>Lemon8 {rd.sources.lemon8}</span>}
+              {rd.sources.bridely > 0 && <span style={badge('#e91e9c')}>Bridely {rd.sources.bridely}</span>}
+              {isWedding && rd.weddingRelevantCount > 0 && <span style={{fontSize:11,color:C.mut,marginLeft:4}}>({rd.weddingRelevantCount} wedding-specific)</span>}
+            </div>}
             <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
               <div style={card}><div style={{fontSize:13,fontWeight:700,color:C.pos,marginBottom:4}}>✦ Strengths</div>{(rd.top_positives||[]).map((p,i)=><div key={i} style={{fontSize:12,padding:'3px 0',borderBottom:`1px solid ${C.bdr}`}}>{p}</div>)}</div>
               <div style={card}><div style={{fontSize:13,fontWeight:700,color:C.neg,marginBottom:4}}>⚠ Weaknesses</div>{(rd.top_negatives||[]).map((n,i)=><div key={i} style={{fontSize:12,padding:'3px 0',borderBottom:`1px solid ${C.bdr}`}}>{n}</div>)}</div>
@@ -392,15 +422,31 @@ export default function Home() {
         {/* ═══ REVIEWS ═══ */}
         {tab==='reviews' && hasData && (<div>
           <ActionBar onSave={exportReviews} saveLabel="💾 Save Reviews (.docx)"/>
-          <h2 style={{fontSize:19,fontWeight:700,color:C.navy,marginBottom:10}}>{v?.name} — {rd.reviews?.length} Reviews</h2>
-          <div style={{display:'flex',gap:12,marginBottom:14}}><Gauge score={rd.food_score} label="Food" size={64}/><Gauge score={rd.service_score} label="Service" size={64}/><Gauge score={rd.atmosphere_score} label="Atmosphere" size={64}/></div>
+          <h2 style={{fontSize:19,fontWeight:700,color:C.navy,marginBottom:10}}>{v?.parentName ? `${v.parentName} — ` : ''}{v?.name} — {rd.reviews?.length} Reviews</h2>
+          <div style={{display:'flex',gap:12,marginBottom:14,flexWrap:'wrap'}}>
+            <Gauge score={rd.food_score} label="Food" size={64}/>
+            <Gauge score={rd.service_score} label="Service" size={64}/>
+            <Gauge score={rd.atmosphere_score} label="Atmosphere" size={64}/>
+            {isWedding && rd.coordination_score > 0 && <Gauge score={rd.coordination_score} label="Coordination" size={64}/>}
+          </div>
           {(rd.reviews||[]).map((r,i)=>(<div key={i} style={{...card,animation:`fadeIn 0.3s ease ${i*0.03}s both`}}>
             <div style={{display:'flex',justifyContent:'space-between',marginBottom:5}}>
-              <div style={{display:'flex',gap:6,alignItems:'center'}}><span style={badge(C.gold)}>google</span><span style={{...badge(r.sentiment==='positive'?C.pos:r.sentiment==='negative'?C.neg:C.warn),background:(r.sentiment==='positive'?C.pos:r.sentiment==='negative'?C.neg:C.warn)+'20',color:r.sentiment==='positive'?C.pos:r.sentiment==='negative'?C.neg:C.warn}}>{r.sentiment}</span>{r.rating&&<span style={{fontSize:12,color:C.gold,fontWeight:700}}>{'★'.repeat(Math.round(r.rating))}</span>}</div>
+              <div style={{display:'flex',gap:6,alignItems:'center'}}>
+                <span style={badge(r.source==='tripadvisor'?'#00aa6c':r.source==='lemon8'?'#ff6b6b':r.source==='bridely'?'#e91e9c':C.gold)}>{r.sourceLabel||r.source||'Google'}</span>
+                <span style={{...badge(r.sentiment==='positive'?C.pos:r.sentiment==='negative'?C.neg:C.warn),background:(r.sentiment==='positive'?C.pos:r.sentiment==='negative'?C.neg:C.warn)+'20',color:r.sentiment==='positive'?C.pos:r.sentiment==='negative'?C.neg:C.warn}}>{r.sentiment}</span>
+                {r.rating&&<span style={{fontSize:12,color:C.gold,fontWeight:700}}>{'★'.repeat(Math.round(r.rating))}</span>}
+                {r.weddingType && <span style={{fontSize:10,background:'#f3e5f5',color:'#7b1fa2',padding:'2px 7px',borderRadius:10}}>{r.weddingType}</span>}
+              </div>
               <span style={{fontSize:11,color:C.mut}}>{r.date}{r.author&&` · ${r.author}`}</span>
             </div>
+            {r.title && <div style={{fontSize:13,fontWeight:700,color:C.navy,marginBottom:3}}>{r.title}</div>}
             <p style={{fontSize:12,lineHeight:1.6,margin:'0 0 5px'}}>{r.summary||r.text?.slice(0,150)}</p>
-            <div style={{display:'flex',gap:12,fontSize:11}}><span style={{color:scCol(r.food_score)}}>Food:{r.food_score}/5</span><span style={{color:scCol(r.service_score)}}>Service:{r.service_score}/5</span><span style={{color:scCol(r.atmosphere_score)}}>Atm:{r.atmosphere_score}/5</span></div>
+            <div style={{display:'flex',gap:12,fontSize:11,flexWrap:'wrap'}}>
+              <span style={{color:scCol(r.food_score)}}>Food:{r.food_score}/5</span>
+              <span style={{color:scCol(r.service_score)}}>Service:{r.service_score}/5</span>
+              <span style={{color:scCol(r.atmosphere_score)}}>Atm:{r.atmosphere_score}/5</span>
+              {r.coordination_score > 0 && <span style={{color:scCol(r.coordination_score)}}>Coord:{r.coordination_score}/5</span>}
+            </div>
             {r.key_themes?.length>0&&<div style={{display:'flex',gap:4,flexWrap:'wrap',marginTop:5}}>{r.key_themes.map((t,j)=><span key={j} style={{fontSize:10,background:C.bg,padding:'2px 7px',borderRadius:10,color:C.mut}}>{t}</span>)}</div>}
           </div>))}
         </div>)}
@@ -443,7 +489,7 @@ export default function Home() {
           <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:14}}>
             <h2 style={{fontSize:19,fontWeight:700,color:C.navy,margin:0}}>{v?.name} — Competitors</h2>
             <div style={{display:'flex',gap:8}}>
-              {!comps.length && <button style={btn('gold')} onClick={findCompetitors} disabled={loading==='competitors'}>{loading==='competitors'?'🔄 Finding...':'🔍 Discover Competitors'}</button>}
+              {!comps.length && <button style={btn('gold')} onClick={findCompetitors} disabled={loading==='competitors'}>{loading==='competitors'?'🔄 Finding...':(isWedding?'💒 Discover Wedding Competitors':'🔍 Discover Competitors')}</button>}
               {selectedComps.length>0 && selectedComps.some(c=>!c.scraped) && <button style={btn('green')} onClick={extractCompetitorReviews} disabled={loading==='comp-reviews'}>📊 Extract Reviews ({selectedComps.filter(c=>!c.scraped).length})</button>}
             </div>
           </div>
