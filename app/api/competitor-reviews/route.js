@@ -15,6 +15,8 @@ export async function POST(request) {
       reviewsLimit,        // legacy single-value param
       googleLimit,         // new explicit param
       tripAdvisorLimit,    // new explicit param
+      dateFrom,            // same date range as main venue for fair comparison
+      dateTo,
       // Default OFF for competitors — TripAdvisor async polling can push
       // a single call past 60s, which stalls the whole 10-competitor
       // sequential sweep. Callers can opt in per-venue when needed.
@@ -25,19 +27,31 @@ export async function POST(request) {
       return Response.json({ error: 'Missing query (Google Maps URL or venue name + location)' }, { status: 400 });
     }
 
-    // Resolve limits — smaller defaults for competitors (faster sweep)
-    const gLimit = googleLimit ?? reviewsLimit ?? 20;
+    // Resolve limits — default 30 to match main venue for fair comparison
+    const gLimit = googleLimit ?? reviewsLimit ?? 30;
     const taLimit = tripAdvisorLimit ?? (reviewsLimit ? Math.max(8, Math.round(reviewsLimit * 0.6)) : 15);
+
+    // Date cutoff for Outscraper
+    const cutoff = dateFrom ? String(Math.floor(new Date(dateFrom).getTime() / 1000)) : null;
 
     // Step 1: Fetch from Outscraper — Google + TripAdvisor in parallel
     const outscraper = await fetchAllReviews({
       query,
       googleLimit: gLimit,
       tripAdvisorLimit: taLimit,
+      cutoff,
       includeTripAdvisor,
     });
 
-    const reviews = outscraper.reviews || [];
+    // Apply dateTo filter if specified
+    let reviews = outscraper.reviews || [];
+    if (dateTo) {
+      const toDate = new Date(dateTo);
+      reviews = reviews.filter(r => {
+        if (!r.date) return true;
+        return new Date(r.date) <= toDate;
+      });
+    }
 
     if (reviews.length === 0) {
       // Preserve legacy behaviour: HTTP 200 with nulls so the UI can still render a card

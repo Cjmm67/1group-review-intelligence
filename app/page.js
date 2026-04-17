@@ -173,12 +173,33 @@ export default function Home() {
   // ── Add manual competitor ──
   const addCompetitor = () => {
     if (!addCompName.trim() || !venue) return;
-    const newComp = { name:addCompName.trim(), type:'custom', reason:'Manually added', cuisine:'Unknown', location:'Singapore', price_range:'$$$', google_rating:null, key_strengths:[], key_weaknesses:[], selected:true, scraped:false, food_score:null, service_score:null, atmosphere_score:null, overall_score:null };
+    const input = addCompName.trim();
+    const isUrl = /^https?:\/\//i.test(input) || /maps\.app\.goo\.gl/i.test(input) || /google\.com\/maps/i.test(input);
+    const newComp = {
+      name: isUrl ? '(loading from URL...)' : input,
+      mapsUrl: isUrl ? input : null,
+      type: 'custom',
+      reason: 'Manually added',
+      cuisine: 'Unknown',
+      location: 'Singapore',
+      price_range: '$$$',
+      google_rating: null,
+      key_strengths: [],
+      key_weaknesses: [],
+      selected: true,
+      scraped: false,
+      food_score: null,
+      service_score: null,
+      atmosphere_score: null,
+      overall_score: null,
+    };
     setCompetitors(prev => ({...prev,[venue]:[...(prev[venue]||[]),newComp]}));
     setAddCompName('');
   };
 
   // ── Extract reviews for all selected competitors ──
+  // Uses the same date range and review limit as the main venue scrape
+  // so the comparison is fair (apples-to-apples).
   const extractCompetitorReviews = async () => {
     const toScrape = selectedComps.filter(c => !c.scraped);
     if (!toScrape.length) { setError('All selected competitors already scored.'); return; }
@@ -187,15 +208,39 @@ export default function Home() {
 
     for (let i = 0; i < toScrape.length; i++) {
       const comp = toScrape[i];
-      setCompProgress({ current:i+1, total:toScrape.length, name:comp.name });
+      setCompProgress({ current:i+1, total:toScrape.length, name:comp.mapsUrl ? '📍 ' + (comp.name || comp.mapsUrl) : comp.name });
 
       try {
-        const query = `${comp.name} Singapore restaurant`;
-        const res = await fetch('/api/competitor-reviews', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({query, competitorName:comp.name, competitorType:comp.cuisine, reviewsLimit:15}) });
+        // Use Google Maps URL if available (much more accurate than name search)
+        const query = comp.mapsUrl || `${comp.name} Singapore restaurant`;
+        const res = await fetch('/api/competitor-reviews', {
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({
+            query,
+            competitorName: comp.name !== '(loading from URL...)' ? comp.name : null,
+            competitorType: comp.cuisine,
+            reviewsLimit: 30,  // match main venue default for fair comparison
+            dateFrom,          // same date range as main venue
+            dateTo,
+          }),
+        });
         const result = await res.json();
 
         if (!result.error) {
-          updated = updated.map(c => c.name===comp.name ? {...c, scraped:true, food_score:result.food_score, service_score:result.service_score, atmosphere_score:result.atmosphere_score, overall_score:result.overall_score||result.googleRating, googleRating:result.googleRating||c.google_rating, reviewCount:result.reviewCount, top_positives:result.top_positives, top_negatives:result.top_negatives } : c);
+          updated = updated.map(c => c.name===comp.name || (comp.mapsUrl && c.mapsUrl===comp.mapsUrl) ? {
+            ...c,
+            name: result.name || c.name,  // Outscraper resolves the real venue name
+            scraped: true,
+            food_score: result.food_score,
+            service_score: result.service_score,
+            atmosphere_score: result.atmosphere_score,
+            overall_score: result.overall_score || result.googleRating,
+            googleRating: result.googleRating || c.google_rating,
+            reviewCount: result.reviewCount,
+            top_positives: result.top_positives,
+            top_negatives: result.top_negatives,
+          } : c);
         }
       } catch(e) { console.error(`Failed: ${comp.name}`, e); }
 
@@ -505,7 +550,7 @@ export default function Home() {
 
           {/* Manual add */}
           {comps.length>0 && (<div style={{...card,display:'flex',gap:8,alignItems:'center',padding:12}}>
-            <input value={addCompName} onChange={e=>setAddCompName(e.target.value)} onKeyDown={e=>{if(e.key==='Enter')addCompetitor()}} placeholder="Add a competitor by name..." style={{...inp,flex:1}}/>
+            <input value={addCompName} onChange={e=>setAddCompName(e.target.value)} onKeyDown={e=>{if(e.key==='Enter')addCompetitor()}} placeholder="Paste Google Maps URL or type venue name..." style={{...inp,flex:1}}/>
             <button onClick={addCompetitor} disabled={!addCompName.trim()} style={{...btn('outline'),padding:'8px 16px',opacity:addCompName.trim()?1:0.4}}>+ Add</button>
           </div>)}
 
@@ -523,17 +568,18 @@ export default function Home() {
                       <input type="checkbox" checked={c.selected!==false} onChange={()=>toggleComp(c.name)} style={{marginTop:3,cursor:'pointer',accentColor:C.gold}}/>
                       <div style={{flex:1}}>
                         <div style={{display:'flex',justifyContent:'space-between'}}>
-                          <div style={{fontWeight:700,fontSize:13}}>{c.name}</div>
+                          <div style={{fontWeight:700,fontSize:13}}>{c.mapsUrl && '📍 '}{c.name}</div>
                           <button onClick={()=>removeComp(c.name)} style={{background:'none',border:'none',cursor:'pointer',color:C.mut,fontSize:12}}>✕</button>
                         </div>
                         <div style={{fontSize:11,color:C.mut}}>{c.cuisine} · {c.location} {c.price_range&&`· ${c.price_range}`}</div>
                         {c.google_rating && <div style={{fontSize:11,marginTop:2}}>Google: ★ {c.google_rating}</div>}
                         {c.scraped && c.food_score ? (
-                          <div style={{display:'flex',gap:8,marginTop:6,fontSize:11}}>
+                          <div style={{display:'flex',gap:8,marginTop:6,fontSize:11,flexWrap:'wrap',alignItems:'center'}}>
                             <span style={{color:scCol(c.food_score),fontWeight:600}}>F:{c.food_score.toFixed(1)}</span>
                             <span style={{color:scCol(c.service_score),fontWeight:600}}>S:{c.service_score.toFixed(1)}</span>
                             <span style={{color:scCol(c.atmosphere_score),fontWeight:600}}>A:{c.atmosphere_score.toFixed(1)}</span>
                             <span style={badge(C.pos)}>scored</span>
+                            {c.reviewCount > 0 && <span style={{color:C.mut,fontSize:10}}>({c.reviewCount} reviews)</span>}
                           </div>
                         ) : c.scraped ? <span style={badge(C.warn)}>no reviews found</span> : <span style={{fontSize:10,color:C.mut}}>Not yet scored</span>}
                         <p style={{fontSize:11,color:C.mut,marginTop:4,marginBottom:0}}>{c.reason}</p>
