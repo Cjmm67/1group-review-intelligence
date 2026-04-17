@@ -550,7 +550,7 @@ export default function Home() {
 
           {/* Manual add */}
           {comps.length>0 && (<div style={{...card,display:'flex',gap:8,alignItems:'center',padding:12}}>
-            <input value={addCompName} onChange={e=>setAddCompName(e.target.value)} onKeyDown={e=>{if(e.key==='Enter')addCompetitor()}} placeholder="Paste Google Maps URL or type venue name..." style={{...inp,flex:1}}/>
+            <input value={addCompName} onChange={e=>setAddCompName(e.target.value)} onKeyDown={e=>{if(e.key==='Enter')addCompetitor()}} placeholder="Add competitor by Google Maps URL..." style={{...inp,flex:1}}/>
             <button onClick={addCompetitor} disabled={!addCompName.trim()} style={{...btn('outline'),padding:'8px 16px',opacity:addCompName.trim()?1:0.4}}>+ Add</button>
           </div>)}
 
