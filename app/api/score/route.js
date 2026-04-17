@@ -3,9 +3,9 @@ import { generateStrategy } from '@/lib/claude';
 export async function POST(request) {
   try {
     const body = await request.json();
-    const { venueName, scores, positives, negatives, competitors } = body;
+    const { venueName, scores, positives, negatives, competitors, additionalContext } = body;
 
-    const result = await generateStrategy({ venueName, scores, positives, negatives, competitors });
+    const result = await generateStrategy({ venueName, scores, positives, negatives, competitors, additionalContext });
     return Response.json(result);
 
   } catch (error) {

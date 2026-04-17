@@ -266,6 +266,72 @@ export default function Home() {
     setLoading(null);
   };
 
+  // ── Add More Strategies (appends to existing, no duplicates) ──
+  const addMoreStrategies = async () => {
+    if (!v || !rd || !strat) return;
+    setLoading('strategy'); setError(null);
+    try {
+      const existing = [
+        ...(strat.food_recommendations||[]).map(r=>r.recommendation),
+        ...(strat.service_recommendations||[]).map(r=>r.recommendation),
+        ...(strat.atmosphere_recommendations||[]).map(r=>r.recommendation),
+        ...(strat.quick_wins||[]).map(q=>q.action),
+        ...(strat.strategic_initiatives||[]).map(s=>s.action),
+      ].join(' | ');
+      const res = await fetch('/api/score', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({
+        venueName:v.name,
+        scores:{food:rd.food_score,service:rd.service_score,atmosphere:rd.atmosphere_score},
+        positives:rd.top_positives, negatives:rd.top_negatives, competitors:selectedComps,
+        additionalContext: `You have ALREADY recommended these strategies: "${existing}". Generate NEW, DIFFERENT recommendations that do NOT duplicate any of the above. Focus on areas not yet covered. Be creative and specific.`,
+      }) });
+      const result = await res.json();
+      if (result.error) { setError(result.error); setLoading(null); return; }
+      // Merge new into existing — append, don't replace
+      setStrategy(prev => {
+        const old = prev[venue] || {};
+        return {...prev, [venue]: {
+          ...old,
+          executive_summary: old.executive_summary || result.executive_summary,
+          food_recommendations: [...(old.food_recommendations||[]), ...(result.food_recommendations||[])],
+          service_recommendations: [...(old.service_recommendations||[]), ...(result.service_recommendations||[])],
+          atmosphere_recommendations: [...(old.atmosphere_recommendations||[]), ...(result.atmosphere_recommendations||[])],
+          quick_wins: [...(old.quick_wins||[]), ...(result.quick_wins||[])],
+          strategic_initiatives: [...(old.strategic_initiatives||[]), ...(result.strategic_initiatives||[])],
+          competitive_threats: [...(old.competitive_threats||[]), ...(result.competitive_threats||[])],
+          team_action_items: [...(old.team_action_items||[]), ...(result.team_action_items||[])],
+        }};
+      });
+    } catch(e) { setError(e.message); }
+    setLoading(null);
+  };
+
+  // ── Strategy editing helpers ──
+  const updateStratField = (field, value) => {
+    setStrategy(prev => ({...prev, [venue]: {...(prev[venue]||{}), [field]: value}}));
+  };
+  const updateStratItem = (field, index, key, value) => {
+    setStrategy(prev => {
+      const old = {...(prev[venue]||{})};
+      const arr = [...(old[field]||[])];
+      arr[index] = {...arr[index], [key]: value};
+      return {...prev, [venue]: {...old, [field]: arr}};
+    });
+  };
+  const removeStratItem = (field, index) => {
+    setStrategy(prev => {
+      const old = {...(prev[venue]||{})};
+      const arr = [...(old[field]||[])];
+      arr.splice(index, 1);
+      return {...prev, [venue]: {...old, [field]: arr}};
+    });
+  };
+  const addStratItem = (field, template) => {
+    setStrategy(prev => {
+      const old = {...(prev[venue]||{})};
+      return {...prev, [venue]: {...old, [field]: [...(old[field]||[]), template]}};
+    });
+  };
+
   // ── Download helpers (.docx exports) ──
   // Each tab delegates to a dedicated Word-doc builder in lib/docx-report.js
   // so the files are editable, properly formatted, and ready to share.
@@ -687,16 +753,111 @@ export default function Home() {
         {/* ═══ STRATEGY ═══ */}
         {tab==='strategy' && (<div>
           {strat && <ActionBar onSave={exportStrategy} saveLabel="💾 Save Strategy (.docx)"/>}
-          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
+          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12,flexWrap:'wrap',gap:8}}>
             <h2 style={{fontSize:19,fontWeight:700,color:C.navy,margin:0}}>{v?.name} — Strategy</h2>
-            {hasData && <button style={btn('gold')} onClick={genStrategy} disabled={loading==='strategy'}>{loading==='strategy'?'🔄 Generating...':'⚡ Generate'}</button>}
+            <div style={{display:'flex',gap:8}}>
+              {hasData && <button style={btn('gold')} onClick={genStrategy} disabled={loading==='strategy'}>{loading==='strategy'?'🔄 Generating...':(strat?'🔄 Regenerate':'⚡ Generate')}</button>}
+              {strat && hasData && <button style={btn('navy')} onClick={addMoreStrategies} disabled={loading==='strategy'}>✨ Add More AI Strategies</button>}
+            </div>
           </div>
           {loading==='strategy' && <Spinner text="Generating strategic recommendations..."/>}
           {strat && !loading && (<div>
-            <div style={{...card,borderLeft:`4px solid ${C.gold}`}}><div style={{fontSize:15,fontWeight:700,marginBottom:5}}>Executive Summary</div><p style={{fontSize:13,lineHeight:1.7,margin:0}}>{strat.executive_summary}</p></div>
-            {[{t:'Food',d:strat.food_recommendations,c:C.pos},{t:'Service',d:strat.service_recommendations,c:C.gold},{t:'Atmosphere',d:strat.atmosphere_recommendations,c:C.warn}].map(sec=>sec.d?.length>0&&(<div key={sec.t} style={{marginBottom:12}}><div style={{fontSize:14,fontWeight:700,marginBottom:6,color:sec.c}}>{sec.t}</div>{sec.d.map((r,i)=>(<div key={i} style={{...card,display:'flex',gap:8,padding:12}}><span style={badge(r.priority==='high'?C.neg:r.priority==='medium'?C.warn:C.pos)}>{r.priority}</span><div><div style={{fontSize:12,fontWeight:600}}>{r.recommendation}</div><div style={{fontSize:11,color:C.mut}}>Based on: {r.based_on}</div></div></div>))}</div>))}
-            {strat.quick_wins?.length>0&&<div style={{marginBottom:12}}><div style={{fontSize:14,fontWeight:700,marginBottom:6}}>⚡ Quick Wins</div>{strat.quick_wins.map((q,i)=><div key={i} style={{...card,padding:12}}><div style={{fontSize:12,fontWeight:600}}>{q.action}</div><div style={{fontSize:11,color:C.mut}}>{q.timeline} · {q.expected_impact}</div></div>)}</div>}
-            {strat.competitive_threats?.length>0&&<div><div style={{fontSize:14,fontWeight:700,marginBottom:6}}>🛡 Threats</div>{strat.competitive_threats.map((t,i)=><div key={i} style={{...card,borderLeft:`4px solid ${C.neg}`,padding:12}}><div style={{fontSize:12,fontWeight:700}}>{t.competitor}</div><div style={{fontSize:11}}>{t.threat}</div><div style={{fontSize:11,color:C.pos,fontWeight:600}}>↳ {t.response}</div></div>)}</div>}
+            {/* Executive Summary — editable */}
+            <div style={{...card,borderLeft:`4px solid ${C.gold}`}}>
+              <div style={{fontSize:15,fontWeight:700,marginBottom:5}}>Executive Summary</div>
+              <textarea value={strat.executive_summary||''} onChange={e=>updateStratField('executive_summary',e.target.value)} style={{width:'100%',border:`1px solid ${C.bdr}`,borderRadius:6,padding:10,fontSize:13,lineHeight:1.7,minHeight:80,resize:'vertical',fontFamily:'inherit',boxSizing:'border-box'}}/>
+            </div>
+
+            {/* Recommendation sections — Food / Service / Atmosphere */}
+            {[{t:'Food',field:'food_recommendations',c:C.pos},{t:'Service',field:'service_recommendations',c:C.gold},{t:'Atmosphere',field:'atmosphere_recommendations',c:C.warn}].map(sec=>(
+              <div key={sec.t} style={{marginBottom:12}}>
+                <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:6}}>
+                  <div style={{fontSize:14,fontWeight:700,color:sec.c}}>{sec.t} ({(strat[sec.field]||[]).length})</div>
+                  <button onClick={()=>addStratItem(sec.field,{recommendation:'New recommendation...',based_on:'',priority:'medium'})} style={{background:'none',border:`1px dashed ${sec.c}`,borderRadius:6,padding:'3px 10px',fontSize:11,color:sec.c,cursor:'pointer',fontWeight:600}}>+ Add</button>
+                </div>
+                {(strat[sec.field]||[]).map((r,i)=>(
+                  <div key={i} style={{...card,padding:12,position:'relative'}}>
+                    <button onClick={()=>removeStratItem(sec.field,i)} style={{position:'absolute',top:8,right:8,background:'none',border:'none',cursor:'pointer',color:C.mut,fontSize:14}} title="Remove">✕</button>
+                    <div style={{display:'flex',gap:8,alignItems:'flex-start',marginBottom:6}}>
+                      <select value={r.priority||'medium'} onChange={e=>updateStratItem(sec.field,i,'priority',e.target.value)} style={{padding:'3px 6px',borderRadius:6,border:`1px solid ${C.bdr}`,fontSize:11,fontWeight:700,color:r.priority==='high'?C.neg:r.priority==='medium'?C.warn:C.pos,cursor:'pointer'}}>
+                        <option value="high">HIGH</option><option value="medium">MEDIUM</option><option value="low">LOW</option>
+                      </select>
+                    </div>
+                    <textarea value={r.recommendation||''} onChange={e=>updateStratItem(sec.field,i,'recommendation',e.target.value)} style={{width:'100%',border:`1px solid ${C.bdr}`,borderRadius:4,padding:6,fontSize:12,fontWeight:600,resize:'vertical',minHeight:36,fontFamily:'inherit',boxSizing:'border-box'}}/>
+                    <input value={r.based_on||''} onChange={e=>updateStratItem(sec.field,i,'based_on',e.target.value)} placeholder="Based on..." style={{width:'100%',border:`1px solid ${C.bdr}`,borderRadius:4,padding:4,fontSize:11,color:C.mut,marginTop:4,boxSizing:'border-box'}}/>
+                  </div>
+                ))}
+              </div>
+            ))}
+
+            {/* Quick Wins */}
+            <div style={{marginBottom:12}}>
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:6}}>
+                <div style={{fontSize:14,fontWeight:700}}>⚡ Quick Wins ({(strat.quick_wins||[]).length})</div>
+                <button onClick={()=>addStratItem('quick_wins',{action:'New quick win...',timeline:'30 days',expected_impact:''})} style={{background:'none',border:`1px dashed ${C.gold}`,borderRadius:6,padding:'3px 10px',fontSize:11,color:C.gold,cursor:'pointer',fontWeight:600}}>+ Add</button>
+              </div>
+              {(strat.quick_wins||[]).map((q,i)=>(
+                <div key={i} style={{...card,padding:12,position:'relative'}}>
+                  <button onClick={()=>removeStratItem('quick_wins',i)} style={{position:'absolute',top:8,right:8,background:'none',border:'none',cursor:'pointer',color:C.mut,fontSize:14}} title="Remove">✕</button>
+                  <textarea value={q.action||''} onChange={e=>updateStratItem('quick_wins',i,'action',e.target.value)} style={{width:'100%',border:`1px solid ${C.bdr}`,borderRadius:4,padding:6,fontSize:12,fontWeight:600,resize:'vertical',minHeight:36,fontFamily:'inherit',boxSizing:'border-box'}}/>
+                  <div style={{display:'flex',gap:8,marginTop:4}}>
+                    <input value={q.timeline||''} onChange={e=>updateStratItem('quick_wins',i,'timeline',e.target.value)} placeholder="Timeline" style={{flex:1,border:`1px solid ${C.bdr}`,borderRadius:4,padding:4,fontSize:11,color:C.mut,boxSizing:'border-box'}}/>
+                    <input value={q.expected_impact||''} onChange={e=>updateStratItem('quick_wins',i,'expected_impact',e.target.value)} placeholder="Expected impact" style={{flex:2,border:`1px solid ${C.bdr}`,borderRadius:4,padding:4,fontSize:11,color:C.mut,boxSizing:'border-box'}}/>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Strategic Initiatives */}
+            {strat.strategic_initiatives?.length>0&&<div style={{marginBottom:12}}>
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:6}}>
+                <div style={{fontSize:14,fontWeight:700}}>🎯 Strategic Initiatives ({strat.strategic_initiatives.length})</div>
+                <button onClick={()=>addStratItem('strategic_initiatives',{action:'New initiative...',timeline:'3-6 months',expected_impact:''})} style={{background:'none',border:`1px dashed ${C.navy}`,borderRadius:6,padding:'3px 10px',fontSize:11,color:C.navy,cursor:'pointer',fontWeight:600}}>+ Add</button>
+              </div>
+              {strat.strategic_initiatives.map((s,i)=>(
+                <div key={i} style={{...card,padding:12,position:'relative'}}>
+                  <button onClick={()=>removeStratItem('strategic_initiatives',i)} style={{position:'absolute',top:8,right:8,background:'none',border:'none',cursor:'pointer',color:C.mut,fontSize:14}} title="Remove">✕</button>
+                  <textarea value={s.action||''} onChange={e=>updateStratItem('strategic_initiatives',i,'action',e.target.value)} style={{width:'100%',border:`1px solid ${C.bdr}`,borderRadius:4,padding:6,fontSize:12,fontWeight:600,resize:'vertical',minHeight:36,fontFamily:'inherit',boxSizing:'border-box'}}/>
+                  <div style={{display:'flex',gap:8,marginTop:4}}>
+                    <input value={s.timeline||''} onChange={e=>updateStratItem('strategic_initiatives',i,'timeline',e.target.value)} placeholder="Timeline" style={{flex:1,border:`1px solid ${C.bdr}`,borderRadius:4,padding:4,fontSize:11,color:C.mut,boxSizing:'border-box'}}/>
+                    <input value={s.expected_impact||''} onChange={e=>updateStratItem('strategic_initiatives',i,'expected_impact',e.target.value)} placeholder="Expected impact" style={{flex:2,border:`1px solid ${C.bdr}`,borderRadius:4,padding:4,fontSize:11,color:C.mut,boxSizing:'border-box'}}/>
+                  </div>
+                </div>
+              ))}
+            </div>}
+
+            {/* Competitive Threats */}
+            {strat.competitive_threats?.length>0&&<div style={{marginBottom:12}}>
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:6}}>
+                <div style={{fontSize:14,fontWeight:700}}>🛡 Competitive Threats ({strat.competitive_threats.length})</div>
+                <button onClick={()=>addStratItem('competitive_threats',{competitor:'Competitor name',threat:'Threat description...',response:'Suggested response...'})} style={{background:'none',border:`1px dashed ${C.neg}`,borderRadius:6,padding:'3px 10px',fontSize:11,color:C.neg,cursor:'pointer',fontWeight:600}}>+ Add</button>
+              </div>
+              {strat.competitive_threats.map((t,i)=>(
+                <div key={i} style={{...card,borderLeft:`4px solid ${C.neg}`,padding:12,position:'relative'}}>
+                  <button onClick={()=>removeStratItem('competitive_threats',i)} style={{position:'absolute',top:8,right:8,background:'none',border:'none',cursor:'pointer',color:C.mut,fontSize:14}} title="Remove">✕</button>
+                  <input value={t.competitor||''} onChange={e=>updateStratItem('competitive_threats',i,'competitor',e.target.value)} style={{width:'100%',border:`1px solid ${C.bdr}`,borderRadius:4,padding:4,fontSize:12,fontWeight:700,marginBottom:4,boxSizing:'border-box'}}/>
+                  <textarea value={t.threat||''} onChange={e=>updateStratItem('competitive_threats',i,'threat',e.target.value)} style={{width:'100%',border:`1px solid ${C.bdr}`,borderRadius:4,padding:4,fontSize:11,resize:'vertical',minHeight:30,fontFamily:'inherit',boxSizing:'border-box'}}/>
+                  <input value={t.response||''} onChange={e=>updateStratItem('competitive_threats',i,'response',e.target.value)} placeholder="↳ Response..." style={{width:'100%',border:`1px solid ${C.bdr}`,borderRadius:4,padding:4,fontSize:11,color:C.pos,fontWeight:600,marginTop:4,boxSizing:'border-box'}}/>
+                </div>
+              ))}
+            </div>}
+
+            {/* Team Action Items */}
+            {strat.team_action_items?.length>0&&<div style={{marginBottom:12}}>
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:6}}>
+                <div style={{fontSize:14,fontWeight:700}}>👥 Team Actions ({strat.team_action_items.length})</div>
+                <button onClick={()=>addStratItem('team_action_items',{type:'training',detail:'New action item...'})} style={{background:'none',border:`1px dashed ${C.gold}`,borderRadius:6,padding:'3px 10px',fontSize:11,color:C.gold,cursor:'pointer',fontWeight:600}}>+ Add</button>
+              </div>
+              {strat.team_action_items.map((t,i)=>(
+                <div key={i} style={{...card,padding:12,position:'relative',display:'flex',gap:8,alignItems:'flex-start'}}>
+                  <button onClick={()=>removeStratItem('team_action_items',i)} style={{position:'absolute',top:8,right:8,background:'none',border:'none',cursor:'pointer',color:C.mut,fontSize:14}} title="Remove">✕</button>
+                  <select value={t.type||'training'} onChange={e=>updateStratItem('team_action_items',i,'type',e.target.value)} style={{padding:'3px 6px',borderRadius:6,border:`1px solid ${C.bdr}`,fontSize:11,fontWeight:700,color:C.gold,cursor:'pointer'}}>
+                    <option value="recognition">RECOGNITION</option><option value="coaching">COACHING</option><option value="training">TRAINING</option>
+                  </select>
+                  <textarea value={t.detail||''} onChange={e=>updateStratItem('team_action_items',i,'detail',e.target.value)} style={{flex:1,border:`1px solid ${C.bdr}`,borderRadius:4,padding:4,fontSize:12,resize:'vertical',minHeight:30,fontFamily:'inherit',boxSizing:'border-box'}}/>
+                </div>
+              ))}
+            </div>}
           </div>)}
           {!strat&&!loading&&<div style={{textAlign:'center',padding:50,color:C.mut}}>⚡<div style={{fontSize:15,fontWeight:700,color:C.navy,marginTop:8}}>{hasData?'Click Generate above':'Extract reviews first'}</div></div>}
         </div>)}
