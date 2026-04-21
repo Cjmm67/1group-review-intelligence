@@ -3,7 +3,7 @@
 // app/login/page.js
 // Review Intelligence tool login gate. Accepts:
 //   - Any @1-group.sg staff email + REVIEW_TOOL_PASSWORD
-//   - The master admin email (cjmm67@gmail.com) + REVIEW_ADMIN_PASSCODE
+//   - chris.millar@1-group.sg + REVIEW_ADMIN_PASSCODE (admin role, sees Home button)
 
 import { Suspense, useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -61,10 +61,7 @@ function LoginForm() {
     setError('');
 
     const normalised = email.trim().toLowerCase();
-    const isMaster = normalised === 'cjmm67@gmail.com';
-    const isStaff = normalised.endsWith('@1-group.sg');
-
-    if (!isMaster && !isStaff) {
+    if (!normalised.endsWith('@1-group.sg')) {
       setError('Access is limited to @1-group.sg email addresses.');
       return;
     }
