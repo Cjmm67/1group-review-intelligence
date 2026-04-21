@@ -113,6 +113,30 @@ export default function Home() {
   const [weeklyHistory, setWeeklyHistory] = useState({}); // { venueId: [snapshot, ...] }
   const [competitorLock, setCompetitorLock] = useState({}); // { venueId: { locked, competitors } }
 
+  // ─── Auth session (populated by /api/review-auth/me) ─────────────────────
+  // Used to render the user bar in the tool's header. If role === 'admin'
+  // we show a Home link back to 1group.marketing; if role === 'user' we
+  // show a Sign out button that clears the session cookie.
+  const [session, setSession] = useState({ email: null, role: null, loaded: false });
+  useEffect(() => {
+    let cancelled = false;
+    fetch('/api/review-auth/me', { credentials: 'same-origin' })
+      .then(r => r.json())
+      .then(d => {
+        if (cancelled) return;
+        if (d.ok) setSession({ email: d.email, role: d.role || 'user', loaded: true });
+        else setSession({ email: null, role: null, loaded: true });
+      })
+      .catch(() => { if (!cancelled) setSession({ email: null, role: null, loaded: true }); });
+    return () => { cancelled = true; };
+  }, []);
+
+  const signOut = async () => {
+    try { await fetch('/api/review-auth/logout', { method: 'POST', credentials: 'same-origin' }); }
+    catch {}
+    window.location.href = '/login';
+  };
+
   // ── ISO week helpers ──
   const getISOWeek = (d = new Date()) => {
     const date = new Date(d); date.setHours(0,0,0,0);
@@ -518,9 +542,21 @@ export default function Home() {
   if (!venue) return (
     <div style={{fontFamily:'Georgia,serif',background:C.bg,minHeight:'100vh'}}>
       <style>{`@keyframes spin{to{transform:rotate(360deg)}}*{box-sizing:border-box}`}</style>
-      <div style={{background:`linear-gradient(135deg,${C.navy},#16213e)`,color:C.white,padding:'20px 24px'}}>
-        <div style={{fontSize:22,fontWeight:700}}>1-Group Review Intelligence</div>
-        <div style={{fontSize:12,color:C.goldL,letterSpacing:1,textTransform:'uppercase'}}>Outscraper + Claude AI · Real Google Reviews</div>
+      <div style={{background:`linear-gradient(135deg,${C.navy},#16213e)`,color:C.white,padding:'20px 24px',display:'flex',justifyContent:'space-between',alignItems:'center',gap:16,flexWrap:'wrap'}}>
+        <div>
+          <div style={{fontSize:22,fontWeight:700}}>1-Group Review Intelligence</div>
+          <div style={{fontSize:12,color:C.goldL,letterSpacing:1,textTransform:'uppercase'}}>Outscraper + Claude AI · Real Google Reviews</div>
+        </div>
+        {session.loaded && session.email && (
+          <div style={{display:'flex',alignItems:'center',gap:12,flexWrap:'wrap'}}>
+            <span style={{fontSize:12,color:C.goldL,opacity:0.9}}>{session.email}</span>
+            {session.role === 'admin' ? (
+              <a href="https://1group.marketing/" style={{padding:'7px 14px',background:'rgba(255,255,255,0.1)',color:C.white,border:'1px solid rgba(255,255,255,0.2)',borderRadius:6,fontSize:12,fontWeight:600,textDecoration:'none',cursor:'pointer'}}>🏠 1-Group Home</a>
+            ) : (
+              <button onClick={signOut} style={{padding:'7px 14px',background:'rgba(255,255,255,0.1)',color:C.white,border:'1px solid rgba(255,255,255,0.2)',borderRadius:6,fontSize:12,fontWeight:600,cursor:'pointer'}}>🚪 Sign out</button>
+            )}
+          </div>
+        )}
       </div>
       <div style={{padding:'20px 24px',maxWidth:1200,margin:'0 auto'}}>
         <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:6}}>
@@ -605,9 +641,22 @@ export default function Home() {
       <style>{`@keyframes spin{to{transform:rotate(360deg)}}@keyframes fadeIn{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}*{box-sizing:border-box}`}</style>
 
       {/* Header */}
-      <div style={{background:`linear-gradient(135deg,${C.navy},#16213e)`,color:C.white,padding:'14px 22px',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+      <div style={{background:`linear-gradient(135deg,${C.navy},#16213e)`,color:C.white,padding:'14px 22px',display:'flex',justifyContent:'space-between',alignItems:'center',gap:16,flexWrap:'wrap'}}>
         <div style={{cursor:'pointer'}} onClick={()=>setVenue(null)}><div style={{fontSize:19,fontWeight:700}}>1-Group Review Intelligence</div><div style={{fontSize:11,color:C.goldL,letterSpacing:1,textTransform:'uppercase'}}>Outscraper + Claude AI</div></div>
-        <span style={{fontSize:13,color:C.goldL,fontWeight:600}}>{v?.parentName} › {v?.name}</span>
+        <div style={{display:'flex',alignItems:'center',gap:12,flexWrap:'wrap'}}>
+          <span style={{fontSize:13,color:C.goldL,fontWeight:600}}>{v?.parentName} › {v?.name}</span>
+          {session.loaded && session.email && (
+            <>
+              <span style={{width:1,height:16,background:'rgba(255,255,255,0.2)'}}/>
+              <span style={{fontSize:11,color:C.goldL,opacity:0.85}}>{session.email}</span>
+              {session.role === 'admin' ? (
+                <a href="https://1group.marketing/" style={{padding:'6px 12px',background:'rgba(255,255,255,0.1)',color:C.white,border:'1px solid rgba(255,255,255,0.2)',borderRadius:6,fontSize:11,fontWeight:600,textDecoration:'none',cursor:'pointer'}}>🏠 Home</a>
+              ) : (
+                <button onClick={signOut} style={{padding:'6px 12px',background:'rgba(255,255,255,0.1)',color:C.white,border:'1px solid rgba(255,255,255,0.2)',borderRadius:6,fontSize:11,fontWeight:600,cursor:'pointer'}}>🚪 Sign out</button>
+              )}
+            </>
+          )}
+        </div>
       </div>
 
       {/* Tabs */}
