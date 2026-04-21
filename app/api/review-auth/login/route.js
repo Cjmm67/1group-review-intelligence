@@ -4,10 +4,10 @@
 // → 200 { ok: true, email, role }  + Set-Cookie: review_session=...
 // → 400/401/429/500 { ok: false, error }
 //
-// Two login paths:
-//   1. @1-group.sg staff        + REVIEW_TOOL_PASSWORD     -> role: 'user'
-//   2. chris.millar@1-group.sg  + REVIEW_ADMIN_PASSCODE    -> role: 'admin'
-//      (master admin can also use REVIEW_TOOL_PASSWORD to get role 'user')
+// Single shared password (REVIEW_TOOL_PASSWORD) for all @1-group.sg staff.
+// Role is derived from email:
+//   chris.millar@1-group.sg  → role: 'admin' (sees Home button)
+//   any other @1-group.sg    → role: 'user'  (sees Sign out)
 
 import {
   signSession,
@@ -84,11 +84,10 @@ export async function POST(request) {
 
   // Load env vars with whitespace trim (common paste issue)
   const staffPwRaw = process.env.REVIEW_TOOL_PASSWORD;
-  const adminPcRaw = process.env.REVIEW_ADMIN_PASSCODE;
   const secretRaw = process.env.REVIEW_AUTH_SECRET;
 
-  if (!secretRaw) {
-    console.error('[review-auth] Missing REVIEW_AUTH_SECRET');
+  if (!secretRaw || !staffPwRaw) {
+    console.error('[review-auth] Missing REVIEW_AUTH_SECRET or REVIEW_TOOL_PASSWORD');
     return Response.json({ ok: false, error: 'Server is not configured. Contact the admin.' }, { status: 500 });
   }
 
@@ -98,34 +97,13 @@ export async function POST(request) {
     return Response.json({ ok: false, error: 'Server misconfigured. Contact the admin.' }, { status: 500 });
   }
 
-  let role = null;
-  if (looksAdmin) {
-    // Master admin can authenticate with EITHER the admin passcode (→ admin role)
-    // OR the regular staff password (→ user role). This way you don't get locked
-    // out if you forget which password to use.
-    if (adminPcRaw && constantTimeEqual(password, adminPcRaw.trim())) {
-      role = 'admin';
-    } else if (staffPwRaw && constantTimeEqual(password, staffPwRaw.trim())) {
-      role = 'user';
-    }
-    // If neither env var is present, that's a config problem:
-    if (!role && !adminPcRaw && !staffPwRaw) {
-      console.error('[review-auth] Missing BOTH REVIEW_ADMIN_PASSCODE and REVIEW_TOOL_PASSWORD');
-      return Response.json({ ok: false, error: 'Server is not configured. Contact the admin.' }, { status: 500 });
-    }
-  } else if (looksStaff) {
-    if (!staffPwRaw) {
-      console.error('[review-auth] Missing REVIEW_TOOL_PASSWORD');
-      return Response.json({ ok: false, error: 'Server is not configured. Contact the admin.' }, { status: 500 });
-    }
-    if (constantTimeEqual(password, staffPwRaw.trim())) {
-      role = 'user';
-    }
-  }
-
-  if (!role) {
+  // Single shared password for everyone. Role is derived from email:
+  //   chris.millar@1-group.sg  → admin (sees Home button back to 1group.marketing)
+  //   any other @1-group.sg    → user  (sees Sign out)
+  if (!constantTimeEqual(password, staffPwRaw.trim())) {
     return Response.json({ ok: false, error: 'Incorrect email or password.' }, { status: 401 });
   }
+  const role = looksAdmin ? 'admin' : 'user';
 
   clearRateLimit(ip);
 

@@ -1,9 +1,9 @@
 'use client';
 
 // app/login/page.js
-// Review Intelligence tool login gate. Accepts:
-//   - Any @1-group.sg staff email + REVIEW_TOOL_PASSWORD
-//   - chris.millar@1-group.sg + REVIEW_ADMIN_PASSCODE (admin role, sees Home button)
+// Review Intelligence tool login gate. Any @1-group.sg email + REVIEW_TOOL_PASSWORD.
+// If the email is chris.millar@1-group.sg, session is tagged as admin role
+// (sees Home button back to 1group.marketing instead of Sign out).
 
 import { Suspense, useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
